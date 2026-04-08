@@ -467,9 +467,17 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     try {
       const { data, error } = await sb.from('produtos').select('*').eq('ativo', true).order('nome');
       if (error) throw error;
-      produtos = data;
+      produtos = data || [];
       renderProdutos();
-    } catch(e) { toast('Erro ao carregar produtos: ' + e.message); }
+    } catch(e) {
+      console.error('carregarProdutos:', e);
+      const el = document.getElementById('lista-produtos');
+      if (el) el.innerHTML = `<div class="vazio" style="border-color:#b92c2c">
+        <div class="vazio-icon">⚠️</div>
+        Erro ao carregar: <strong>${e.message}</strong><br>
+        <small style="color:#b92c2c">Verifique se rodou o SQL e as políticas RLS no Supabase</small>
+      </div>`;
+    }
   }
 
   async function carregarMovs() {
@@ -591,15 +599,16 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     if (!qty || qty <= 0) { alert('Informe uma quantidade válida.'); return; }
     setLoading('btn-conf-entrada', true);
     try {
-      await sb.from('movimentacoes').insert({
+      const { error } = await sb.from('movimentacoes').insert({
         tipo: 'entrada', qty_kg: qty, preco_kg,
         preco_total: preco_kg > 0 ? qty * preco_kg : null,
         vendedor: vendedor||null, conta: conta||null, descricao: descricao||null
       });
+      if (error) throw error;
       fechar('ov-entrada');
       await carregarTudo();
       toast('✓ Entrada de ' + fmtKg(qty) + ' kg registrada!');
-    } catch(e) { alert('Erro: ' + e.message); }
+    } catch(e) { console.error(e); alert('Erro ao salvar: ' + e.message + '\n\nVerifique as políticas RLS no Supabase.'); }
     setLoading('btn-conf-entrada', false);
   }
 
@@ -710,11 +719,13 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     if (!peso_g || peso_g <= 0) { alert('Informe o peso por unidade (em gramas).'); return; }
     setLoading('btn-conf-produto', true);
     try {
+      let result;
       if (editId) {
-        await sb.from('produtos').update({ nome, tipo, peso_g, qtd_estoque: qtd, preco_sug: precoSug }).eq('id', editId);
+        result = await sb.from('produtos').update({ nome, tipo, peso_g, qtd_estoque: qtd, preco_sug: precoSug }).eq('id', editId).select();
       } else {
-        await sb.from('produtos').insert({ nome, tipo, peso_g, qtd_estoque: qtd, preco_sug: precoSug });
+        result = await sb.from('produtos').insert({ nome, tipo, peso_g, qtd_estoque: qtd, preco_sug: precoSug }).select();
       }
+      if (result.error) throw result.error;
       fechar('ov-produto');
       await carregarProdutos();
       toast(editId ? '✓ Produto atualizado!' : '✓ Produto "'+nome+'" cadastrado!');
