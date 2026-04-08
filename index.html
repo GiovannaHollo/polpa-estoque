@@ -465,7 +465,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 
   async function carregarProdutos() {
     try {
-      const { data, error } = await sb.from('produtos').select('*').eq('ativo', true).order('nome');
+      const { data, error } = await sb.from('produtos').select('*').neq('ativo', false).order('nome');
       if (error) throw error;
       produtos = data || [];
       renderProdutos();
@@ -723,7 +723,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
       if (editId) {
         result = await sb.from('produtos').update({ nome, tipo, peso_g, qtd_estoque: qtd, preco_sug: precoSug }).eq('id', editId).select();
       } else {
-        result = await sb.from('produtos').insert({ nome, tipo, peso_g, qtd_estoque: qtd, preco_sug: precoSug }).select();
+        result = await sb.from('produtos').insert({ nome, tipo, peso_g, qtd_estoque: qtd, preco_sug: precoSug, ativo: true }).select();
       }
       if (result.error) throw result.error;
       fechar('ov-produto');
