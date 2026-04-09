@@ -363,7 +363,7 @@
     <div class="f">
       <label>Tipo de embalagem</label>
       <select id="p-tipo">
-        <option value="pote">🫙 Pote</option>
+        <option value="pote">🥃 Pote</option>
         <option value="sache">🧴 Sachê</option>
         <option value="pacote">📦 Pacote</option>
         <option value="outro">📋 Outro</option>
@@ -385,7 +385,7 @@
 
 <script>
 const SB = supabase.createClient(window.__env.SUPABASE_URL, window.__env.SUPABASE_ANON_KEY);
-const EMOJI = {pote:'🫙',sache:'🧴',pacote:'📦',outro:'📋'};
+const EMOJI = {pote:'🥃',sache:'🧴',pacote:'📦',outro:'📋'};
 const LABEL = {pote:'Pote',sache:'Sachê',pacote:'Pacote',outro:'Outro'};
 const R$ = n => (+n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const KG = n => (+n||0).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
