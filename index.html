@@ -125,6 +125,36 @@
     /* PREVIEW PRODUTO SELECIONADO */
     .prod-prev{background:var(--gbg);border:1.5px solid var(--g);border-radius:var(--rs);padding:.7rem 1rem;margin-bottom:1rem;font-size:13px;color:var(--gtx)}
     .prod-prev strong{font-weight:600}
+
+    /* RELATÓRIO */
+    .rel-atalhos{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem}
+    .atalho{border:1px solid var(--bd);background:var(--sf);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--mu)}
+    .atalho.on{border-color:var(--g);background:var(--gbg);color:var(--gtx)}
+    .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem}
+    .kpi{background:var(--sf);border:1px solid var(--bd);border-radius:var(--ra);padding:1rem}
+    .kpi.dest{background:var(--gbg);border-color:rgba(30,92,30,.2)}
+    .kpi .kl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);font-weight:500;margin-bottom:6px}
+    .kpi .kv{font-size:22px;font-weight:600;color:var(--tx);line-height:1}
+    .kpi.dest .kv{color:var(--gtx)}
+    .kpi .ku{font-size:12px;color:var(--mu);margin-top:2px}
+    .bloco{background:var(--sf);border:1px solid var(--bd);border-radius:var(--ra);padding:1rem;margin-bottom:1rem}
+    .bloco-titulo{font-size:14px;font-weight:600;margin-bottom:12px;color:var(--tx)}
+    .bar-wrap{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+    .bar-label{font-size:13px;min-width:100px;max-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--tx)}
+    .bar-track{flex:1;background:var(--bg);border-radius:4px;height:10px;overflow:hidden}
+    .bar-fill{height:100%;border-radius:4px;background:var(--g);transition:width .5s}
+    .bar-fill.r{background:var(--r)}
+    .bar-fill.b{background:var(--b)}
+    .bar-val{font-size:12px;font-family:'DM Mono',monospace;color:var(--mu);min-width:65px;text-align:right}
+    .sem-dados{text-align:center;color:var(--mu);font-size:13px;padding:1.5rem 0}
+    .export-btn{display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--bd);background:var(--sf);border-radius:var(--rs);padding:.65rem 1rem;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--tx);width:100%;margin-bottom:1rem}
+    .tabela-wrap{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{text-align:left;padding:8px 8px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--mu);font-weight:600;border-bottom:1px solid var(--bd)}
+    td{padding:9px 8px;border-bottom:1px solid var(--bd);color:var(--tx)}
+    tr:last-child td{border-bottom:none}
+    .td-r{text-align:right;font-family:'DM Mono',monospace}
+    .td-mu{font-size:11px;color:var(--mu)}
   </style>
 </head>
 <body>
@@ -230,12 +260,80 @@
     <div class="footer">Dados sincronizados em tempo real</div>
   </div>
 
+
+  <!-- ABA: RELATÓRIO -->
+  <div class="tab" id="tab-relatorio">
+    <div class="page-pad">
+
+      <!-- Atalhos de período -->
+      <div class="rel-atalhos">
+        <button class="atalho on" onclick="atalho('hoje',this)">Hoje</button>
+        <button class="atalho" onclick="atalho('semana',this)">7 dias</button>
+        <button class="atalho" onclick="atalho('mes',this)">Este mês</button>
+        <button class="atalho" onclick="atalho('mes_ant',this)">Mês passado</button>
+        <button class="atalho" onclick="atalho('ano',this)">Este ano</button>
+      </div>
+
+      <!-- Datas -->
+      <div class="f-row" style="margin-bottom:1rem">
+        <div class="f" style="margin-bottom:0"><label>De</label><input type="date" id="r-de"/></div>
+        <div class="f" style="margin-bottom:0"><label>Até</label><input type="date" id="r-ate"/></div>
+      </div>
+      <button class="btn-grande btn-verde" onclick="gerarRelatorio()" id="btn-rel" style="margin-bottom:1rem">
+        <span>📊</span><div><div>Gerar relatório</div><div class="btn-sub">Atualizar dados</div></div>
+      </button>
+
+      <!-- KPIs -->
+      <div class="kpi-grid" id="r-kpis" style="display:none">
+        <div class="kpi dest"><div class="kl">Faturamento</div><div class="kv" id="r-fat">—</div><div class="ku">no período</div></div>
+        <div class="kpi"><div class="kl">Custo (entradas)</div><div class="kv" id="r-custo">—</div><div class="ku">no período</div></div>
+        <div class="kpi"><div class="kl">Kg vendidos</div><div class="kv" id="r-kgv">—</div><div class="ku">kg saídos</div></div>
+        <div class="kpi"><div class="kl">Kg comprados</div><div class="kv" id="r-kgc">—</div><div class="ku">kg entrados</div></div>
+      </div>
+
+      <!-- Exportar -->
+      <button class="export-btn" id="r-export" style="display:none" onclick="exportarCSV()">📥 Exportar CSV (Excel)</button>
+
+      <!-- Vendas por produto -->
+      <div class="bloco" id="r-bloco-prod" style="display:none">
+        <div class="bloco-titulo">Vendas por produto</div>
+        <div id="r-chart-prod"></div>
+      </div>
+
+      <!-- Por vendedor -->
+      <div class="bloco" id="r-bloco-vend" style="display:none">
+        <div class="bloco-titulo">Vendas por vendedor(a)</div>
+        <div id="r-chart-vend"></div>
+      </div>
+
+      <!-- Por conta -->
+      <div class="bloco" id="r-bloco-conta" style="display:none">
+        <div class="bloco-titulo">Faturamento por conta</div>
+        <div id="r-chart-conta"></div>
+      </div>
+
+      <!-- Tabela movimentações -->
+      <div class="bloco" id="r-bloco-tab" style="display:none">
+        <div class="bloco-titulo">Movimentações do período</div>
+        <div class="tabela-wrap">
+          <table>
+            <thead><tr><th>Data</th><th>Tipo</th><th>Produto</th><th>Vendedor</th><th>Conta</th><th style="text-align:right">Kg</th><th style="text-align:right">Valor</th></tr></thead>
+            <tbody id="r-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+    <div class="footer">Dados sincronizados em tempo real</div>
+  </div>
+
   <!-- NAV -->
   <nav class="nav">
     <button class="nav-btn on" id="nav-estoque" onclick="irPara('estoque')"><span class="nav-icon">📦</span><span>Estoque</span></button>
     <button class="nav-btn" id="nav-produtos" onclick="irPara('produtos')"><span class="nav-icon">🏷️</span><span>Produtos</span></button>
     <button class="nav-btn" id="nav-entrada" onclick="irPara('entrada')"><span class="nav-icon">📥</span><span>Entrada</span></button>
     <button class="nav-btn" id="nav-venda" onclick="irPara('venda')"><span class="nav-icon">📤</span><span>Venda</span></button>
+    <button class="nav-btn" id="nav-relatorio" onclick="irPara('relatorio')"><span class="nav-icon">📊</span><span>Relatório</span></button>
   </nav>
 </div>
 
@@ -651,15 +749,153 @@ async function carregarDados() {
 }
 
 // ── NAVEGAÇÃO ──────────────────────────────────────────────────
-const subtitulos = {estoque:'Controle de estoque',produtos:'Produtos cadastrados',entrada:'Registrar entrada',venda:'Registrar venda'};
+const subtitulos = {estoque:'Controle de estoque',produtos:'Produtos cadastrados',entrada:'Registrar entrada',venda:'Registrar venda',relatorio:'Relatórios'};
 function irPara(aba) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('on'));
   document.getElementById('tab-'+aba).classList.add('on');
   document.getElementById('nav-'+aba).classList.add('on');
   document.getElementById('hd-sub').textContent = subtitulos[aba]||'';
-  if (aba === 'entrada') preencherSelectsEntrada();
-  if (aba === 'venda')   { preencherSelectsEntrada(); }
+  if (aba === 'entrada')   preencherSelectsEntrada();
+  if (aba === 'venda')     preencherSelectsEntrada();
+  if (aba === 'relatorio') { atalho('mes', document.querySelector('.atalho')); }
+}
+
+
+// ── RELATÓRIO ─────────────────────────────────────────────────
+let _dadosCache = [];
+
+function atalho(tipo, btn) {
+  document.querySelectorAll('.atalho').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  const pad = n => String(n).padStart(2,'0');
+  const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const hj = new Date();
+  let de, ate = iso(hj);
+  if (tipo==='hoje')    { de = iso(hj); }
+  else if (tipo==='semana')  { const d=new Date(hj); d.setDate(d.getDate()-6); de=iso(d); }
+  else if (tipo==='mes')     { de=`${hj.getFullYear()}-${pad(hj.getMonth()+1)}-01`; }
+  else if (tipo==='mes_ant') { const m=new Date(hj.getFullYear(),hj.getMonth()-1,1); const f=new Date(hj.getFullYear(),hj.getMonth(),0); de=iso(m); ate=iso(f); }
+  else if (tipo==='ano')     { de=`${hj.getFullYear()}-01-01`; }
+  document.getElementById('r-de').value  = de;
+  document.getElementById('r-ate').value = ate;
+  gerarRelatorio();
+}
+
+async function gerarRelatorio() {
+  const de  = document.getElementById('r-de').value;
+  const ate = document.getElementById('r-ate').value;
+  if (!de || !ate) return;
+  const btn = document.getElementById('btn-rel');
+  btn.innerHTML = '<span class="spinner"></span><div><div>Carregando...</div></div>'; btn.disabled = true;
+  const {data, error} = await SB.from('movimentacoes').select('*')
+    .gte('criado_em', de+'T00:00:00')
+    .lte('criado_em', ate+'T23:59:59')
+    .order('criado_em', {ascending: false});
+  btn.innerHTML = '<span>📊</span><div><div>Gerar relatório</div><div class="btn-sub">Atualizar dados</div></div>'; btn.disabled = false;
+  if (error) { toast('Erro: '+error.message); return; }
+  _dadosCache = data || [];
+  renderRelatorio(_dadosCache);
+}
+
+function renderRelatorio(data) {
+  const show = id => document.getElementById(id).style.display = 'block';
+  const entradas = data.filter(m => m.tipo==='entrada');
+  const saidas   = data.filter(m => m.tipo==='saida');
+
+  // KPIs
+  const fat   = saidas.reduce((a,m)=>a+(+m.preco_total||0),0);
+  const custo = entradas.reduce((a,m)=>a+(+m.preco_total||0),0);
+  const kgV   = saidas.reduce((a,m)=>a+ +m.qty_kg,0);
+  const kgC   = entradas.reduce((a,m)=>a+ +m.qty_kg,0);
+  document.getElementById('r-fat').textContent   = R$(fat);
+  document.getElementById('r-custo').textContent = R$(custo);
+  document.getElementById('r-kgv').textContent   = KG(kgV)+' kg';
+  document.getElementById('r-kgc').textContent   = KG(kgC)+' kg';
+  show('r-kpis'); show('r-export');
+
+  // Vendas por produto
+  const porProd = {};
+  saidas.forEach(m => {
+    const n = m.produto_nome||'Produto removido';
+    if (!porProd[n]) porProd[n]={nome:n,kg:0,r:0};
+    porProd[n].kg += +m.qty_kg; porProd[n].r += (+m.preco_total||0);
+  });
+  renderBarras('r-chart-prod', Object.values(porProd).sort((a,b)=>b.r-a.r), 'r', '', v=>R$(v));
+  show('r-bloco-prod');
+
+  // Por vendedor
+  const porVend = {};
+  saidas.forEach(m => {
+    const v = m.vendedor||'Sem vendedor';
+    if (!porVend[v]) porVend[v]={nome:v,kg:0,r:0};
+    porVend[v].kg += +m.qty_kg; porVend[v].r += (+m.preco_total||0);
+  });
+  renderBarras('r-chart-vend', Object.values(porVend).sort((a,b)=>b.r-a.r), 'r', 'b', v=>R$(v));
+  show('r-bloco-vend');
+
+  // Por conta
+  const porConta = {};
+  saidas.forEach(m => {
+    const c = m.conta||'Sem conta';
+    if (!porConta[c]) porConta[c]={nome:c,kg:0,r:0};
+    porConta[c].kg += +m.qty_kg; porConta[c].r += (+m.preco_total||0);
+  });
+  renderBarras('r-chart-conta', Object.values(porConta).sort((a,b)=>b.r-a.r), 'r', '', v=>R$(v));
+  show('r-bloco-conta');
+
+  // Tabela
+  const tbody = document.getElementById('r-tbody');
+  const fmtDt = s => new Date(s).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="sem-dados">Nenhuma movimentação no período.</td></tr>';
+  } else {
+    tbody.innerHTML = data.map(m=>`<tr>
+      <td class="td-mu">${fmtDt(m.criado_em)}</td>
+      <td>${m.tipo==='entrada'?'📥 Entrada':'📤 Venda'}</td>
+      <td>${m.produto_nome||m.descricao||'—'}</td>
+      <td>${m.vendedor||'—'}</td>
+      <td>${m.conta||'—'}</td>
+      <td class="td-r">${m.tipo==='entrada'?'+':'−'}${KG(m.qty_kg)}</td>
+      <td class="td-r">${m.preco_total?R$(m.preco_total):'—'}</td>
+    </tr>`).join('');
+  }
+  show('r-bloco-tab');
+}
+
+function renderBarras(containerId, itens, campo, cor, fmt) {
+  const el = document.getElementById(containerId);
+  if (!itens.length) { el.innerHTML='<div class="sem-dados">Nenhum dado no período.</div>'; return; }
+  const max = Math.max(...itens.map(i=>i[campo]))||1;
+  el.innerHTML = itens.map(i=>`
+    <div class="bar-wrap">
+      <div class="bar-label" title="${i.nome}">${i.nome}</div>
+      <div class="bar-track"><div class="bar-fill ${cor}" style="width:${(i[campo]/max*100).toFixed(1)}%"></div></div>
+      <div class="bar-val">${fmt(i[campo])}</div>
+    </div>`).join('');
+}
+
+function exportarCSV() {
+  if (!_dadosCache.length) return;
+  const cab = ['Data','Tipo','Produto','Vendedor','Cliente','Conta','Unidades','Kg','Valor'];
+  const fmtDt = s => new Date(s).toLocaleString('pt-BR');
+  const linhas = _dadosCache.map(m=>[
+    fmtDt(m.criado_em),
+    m.tipo==='entrada'?'Entrada':'Venda',
+    m.produto_nome||m.descricao||'',
+    m.vendedor||'', m.cliente||'', m.conta||'',
+    m.unidades||'',
+    (+m.qty_kg).toFixed(3).replace('.',','),
+    m.preco_total?(+m.preco_total).toFixed(2).replace('.',','):''
+  ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(';'));
+  const csv = [cab.join(';'),...linhas].join('\n');
+  const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `relatorio_${document.getElementById('r-de').value}_${document.getElementById('r-ate').value}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('✓ CSV exportado!');
 }
 
 // ── OVERLAYS ──────────────────────────────────────────────────
