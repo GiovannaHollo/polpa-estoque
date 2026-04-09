@@ -248,8 +248,23 @@
       <div id="venda-linhas"></div>
       <div id="venda-total" style="display:none;background:var(--gbg);border-radius:var(--rs);padding:.75rem 1rem;margin-bottom:1rem;font-size:14px;color:var(--gtx)"></div>
 
-      <div class="f"><label>Vendedor(a)</label><input type="text" id="vd-vendedor" placeholder="Ex: Maria"/></div>
-      <div class="f"><label>Conta que recebeu</label><input type="text" id="vd-conta" placeholder="Ex: Nubank, Caixa, Dinheiro..."/></div>
+      <div class="f"><label>Vendedor(a)</label>
+        <select id="vd-vendedor">
+          <option value="">— selecione —</option>
+          <option value="Adão">Adão</option>
+          <option value="Silvana">Silvana</option>
+          <option value="Vitor">Vitor</option>
+        </select>
+      </div>
+      <div class="f"><label>Conta que recebeu</label>
+        <select id="vd-conta">
+          <option value="">— selecione —</option>
+          <option value="Adão Dinheiro">Adão Dinheiro</option>
+          <option value="Adão Banco">Adão Banco</option>
+          <option value="Vitor Dinheiro">Vitor Dinheiro</option>
+          <option value="Vitor Banco">Vitor Banco</option>
+        </select>
+      </div>
       <div class="f"><label>Cliente (opcional)</label><input type="text" id="vd-cliente" placeholder="Ex: Mercado Central"/></div>
       <div class="f"><label>Observação (opcional)</label><input type="text" id="vd-obs" placeholder="Ex: Entrega agendada"/></div>
 
@@ -384,12 +399,34 @@ SB.auth.onAuthStateChange((ev, session) => {
   if (session) {
     document.getElementById('tela-login').style.display = 'none';
     document.getElementById('app').style.display = 'block';
-    if (ev === 'SIGNED_IN' || ev === 'INITIAL_SESSION') iniciar();
+    if (ev === 'SIGNED_IN' || ev === 'INITIAL_SESSION') {
+      iniciar();
+      iniciarAutoLogout();
+    }
   } else {
     document.getElementById('tela-login').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
   }
 });
+
+// Auto-logout após 30 minutos de inatividade
+let _timerLogout;
+function iniciarAutoLogout() {
+  const MINS = 30;
+  const resetar = () => {
+    clearTimeout(_timerLogout);
+    _timerLogout = setTimeout(async () => {
+      await SB.auth.signOut();
+      window.location.reload();
+    }, MINS * 60 * 1000);
+  };
+  ['click','keydown','touchstart','scroll'].forEach(ev => document.addEventListener(ev, resetar, {passive:true}));
+  resetar();
+}
+
+function userId() {
+  return SB.auth.getUser ? SB.auth.getUser().then(r => r.data?.user?.id) : Promise.resolve(null);
+}
 
 async function login() {
   const email = document.getElementById('l-email').value.trim();
@@ -472,7 +509,8 @@ async function salvarProduto() {
   const editId = document.getElementById('p-id').value;
   if (!nome) { alert('Informe o nome do produto.'); return; }
   if (!peso_g || peso_g <= 0) { alert('Informe o peso por unidade (em gramas).'); return; }
-  const payload = {nome, tipo, peso_g, preco_sug, ativo: true};
+  const uid = (await SB.auth.getUser()).data?.user?.id || null;
+  const payload = {nome, tipo, peso_g, preco_sug, ativo: true, user_id: uid};
   let error;
   if (editId) {
     ({error} = await SB.from('produtos').update(payload).eq('id', editId));
@@ -544,9 +582,10 @@ async function confirmarEntrada() {
   const qty_kg = (p.peso_g * qtd) / 1000;
   const btn = document.getElementById('btn-en');
   btn.innerHTML = '<span class="spinner"></span>Salvando...'; btn.disabled = true;
+  const uid = (await SB.auth.getUser()).data?.user?.id || null;
   const {error} = await SB.from('movimentacoes').insert({
     tipo: 'entrada', qty_kg, produto_id: p.id, produto_nome: p.nome,
-    unidades: qtd, descricao: obs||null
+    unidades: qtd, descricao: obs||null, user_id: uid
   });
   if (error) { alert('Erro: ' + error.message); btn.innerHTML='<span>📥</span><div><div>Confirmar entrada</div><div class="btn-sub">Adiciona ao estoque</div></div>'; btn.disabled=false; return; }
   // Limpar campos
@@ -671,12 +710,13 @@ async function confirmarVenda() {
       if (!p) continue;
       const qty_kg = (p.peso_g * l.qtd) / 1000;
       const preco_total = l.preco > 0 ? l.preco * l.qtd : null;
+      const uid = (await SB.auth.getUser()).data?.user?.id || null;
       const {error} = await SB.from('movimentacoes').insert({
         tipo: 'saida', qty_kg,
         produto_id: p.id, produto_nome: p.nome,
         unidades: l.qtd, preco_total,
         vendedor: vendedor||null, conta: conta||null,
-        cliente: cliente||null, descricao: obs||null
+        cliente: cliente||null, descricao: obs||null, user_id: uid
       });
       if (error) throw error;
     }
