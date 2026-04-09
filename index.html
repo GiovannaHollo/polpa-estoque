@@ -426,10 +426,14 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 
   // ── AUTH ──────────────────────────────────────────────────
   sb.auth.onAuthStateChange((event, session) => {
+    console.log('Auth event:', event, !!session);
     if (session) {
       document.getElementById('tela-login').style.display = 'none';
       document.getElementById('app').style.display = 'block';
-      carregarTudo();
+      // Só carrega na entrada inicial, não a cada refresh de token
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        carregarTudo();
+      }
     } else {
       document.getElementById('tela-login').style.display = 'flex';
       document.getElementById('app').style.display = 'none';
@@ -465,17 +469,17 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 
   async function carregarProdutos() {
     try {
-      const { data, error } = await sb.from('produtos').select('*').neq('ativo', false).order('nome');
+      const { data, error } = await sb.from('produtos').select('*').order('nome');
       if (error) throw error;
       produtos = data || [];
+      console.log('Produtos carregados:', produtos.length, produtos);
       renderProdutos();
     } catch(e) {
-      console.error('carregarProdutos:', e);
+      console.error('carregarProdutos erro:', e);
       const el = document.getElementById('lista-produtos');
       if (el) el.innerHTML = `<div class="vazio" style="border-color:#b92c2c">
         <div class="vazio-icon">⚠️</div>
-        Erro ao carregar: <strong>${e.message}</strong><br>
-        <small style="color:#b92c2c">Verifique se rodou o SQL e as políticas RLS no Supabase</small>
+        Erro ao carregar: <strong>${e.message}</strong>
       </div>`;
     }
   }
@@ -615,7 +619,9 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   // ── SAÍDA / VENDA ─────────────────────────────────────────
   function abrirSaida() {
     if (!produtos.length) {
-      alert('Cadastre ao menos um produto antes de registrar uma venda.\n\nVá na aba "Produtos".');
+      alert('Nenhum produto encontrado.\n\nSe você já cadastrou produtos, recarregue a página (F5) e tente novamente.\n\nSe não cadastrou ainda, vá na aba "Produtos" e clique em "+ Novo produto".');
+      // Tenta recarregar produtos em background
+      carregarProdutos();
       return;
     }
     ['s-unidades','s-preco','s-cliente','s-obs'].forEach(id => document.getElementById(id).value='');
