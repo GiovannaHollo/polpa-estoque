@@ -425,19 +425,13 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   let produtos = [];
 
   // ── AUTH ──────────────────────────────────────────────────
-  let _jaCarregou = false;
   sb.auth.onAuthStateChange((event, session) => {
-    if (session) {
-      document.getElementById('tela-login').style.display = 'none';
-      document.getElementById('app').style.display = 'block';
-      if (!_jaCarregou) {
-        _jaCarregou = true;
+    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+      if (session) {
+        document.getElementById('tela-login').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
         carregarTudo();
       }
-    } else if (event === 'SIGNED_OUT') {
-      _jaCarregou = false;
-      document.getElementById('tela-login').style.display = 'flex';
-      document.getElementById('app').style.display = 'none';
     }
   });
 
@@ -458,11 +452,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 
   async function fazerLogout() {
     await sb.auth.signOut();
-    _jaCarregou = false;
-    document.getElementById('tela-login').style.display = 'flex';
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('l-email').value = '';
-    document.getElementById('l-senha').value = '';
+    window.location.reload();
   }
 
   document.getElementById('l-senha').addEventListener('keydown', e => { if (e.key === 'Enter') fazerLogin(); });
@@ -499,17 +489,18 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 
   async function carregarResumo() {
     try {
-      const { data, error } = await sb.from('movimentacoes').select('tipo, qty_kg, preco_total, criado_em');
-      if (error) throw error;
+      // Estoque em kg vem das movimentações
+      const { data: movs, error: e1 } = await sb.from('movimentacoes').select('tipo, qty_kg, preco_total, criado_em');
+      if (e1) throw e1;
 
-      const est  = data.reduce((a, m) => a + (m.tipo === 'entrada' ? +m.qty_kg : -m.qty_kg), 0);
-      const h    = hoje();
-      const enHj = data.filter(m => m.tipo === 'entrada' && m.criado_em?.startsWith(new Date().toISOString().slice(0,10))).reduce((a,m) => a + +m.qty_kg, 0);
-      const saHj = data.filter(m => m.tipo === 'saida'   && m.criado_em?.startsWith(new Date().toISOString().slice(0,10))).reduce((a,m) => a + +m.qty_kg, 0);
-      const mes  = new Date().toISOString().slice(0,7);
-      const fatM = data.filter(m => m.tipo === 'saida' && m.criado_em?.startsWith(mes)).reduce((a,m) => a + +(m.preco_total||0), 0);
+      const est  = movs.reduce((a, m) => a + (m.tipo === 'entrada' ? +m.qty_kg : -m.qty_kg), 0);
+      const hoje_iso = new Date().toISOString().slice(0,10);
+      const mes_iso  = new Date().toISOString().slice(0,7);
+      const enHj = movs.filter(m => m.tipo === 'entrada' && m.criado_em?.startsWith(hoje_iso)).reduce((a,m) => a + +m.qty_kg, 0);
+      const saHj = movs.filter(m => m.tipo === 'saida'   && m.criado_em?.startsWith(hoje_iso)).reduce((a,m) => a + +m.qty_kg, 0);
+      const fatM = movs.filter(m => m.tipo === 'saida'   && m.criado_em?.startsWith(mes_iso)).reduce((a,m) => a + +(m.preco_total||0), 0);
 
-      document.getElementById('val-estoque').textContent     = fmtKg(Math.max(0, est));
+      document.getElementById('val-estoque').textContent      = fmtKg(Math.max(0, est));
       document.getElementById('val-entrada-hoje').textContent = fmtKg(enHj);
       document.getElementById('val-saida-hoje').textContent   = fmtKg(saHj);
       document.getElementById('val-fat-mes').textContent      = fmtR$(fatM);
@@ -517,7 +508,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
       const cp = document.getElementById('card-principal');
       const bg = est <= 0 ? '#333' : est <= 5 ? '#b92c2c' : 'var(--verde)';
       cp.style.background = cp.style.borderColor = bg;
-    } catch(e) {}
+    } catch(e) { console.error('carregarResumo:', e); }
   }
 
   // ── RENDER MOVIMENTAÇÕES ──────────────────────────────────
@@ -741,6 +732,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
       if (result.error) throw result.error;
       fechar('ov-produto');
       await carregarProdutos();
+      await carregarResumo();
       toast(editId ? '✓ Produto atualizado!' : '✓ Produto "'+nome+'" cadastrado!');
     } catch(e) { alert('Erro: ' + e.message); }
     setLoading('btn-conf-produto', false);
