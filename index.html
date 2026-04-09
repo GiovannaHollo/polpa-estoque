@@ -425,16 +425,17 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   let produtos = [];
 
   // ── AUTH ──────────────────────────────────────────────────
+  let _jaCarregou = false;
   sb.auth.onAuthStateChange((event, session) => {
-    console.log('Auth event:', event, !!session);
     if (session) {
       document.getElementById('tela-login').style.display = 'none';
       document.getElementById('app').style.display = 'block';
-      // Só carrega na entrada inicial, não a cada refresh de token
-      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+      if (!_jaCarregou) {
+        _jaCarregou = true;
         carregarTudo();
       }
-    } else {
+    } else if (event === 'SIGNED_OUT') {
+      _jaCarregou = false;
       document.getElementById('tela-login').style.display = 'flex';
       document.getElementById('app').style.display = 'none';
     }
@@ -457,6 +458,11 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 
   async function fazerLogout() {
     await sb.auth.signOut();
+    _jaCarregou = false;
+    document.getElementById('tela-login').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('l-email').value = '';
+    document.getElementById('l-senha').value = '';
   }
 
   document.getElementById('l-senha').addEventListener('keydown', e => { if (e.key === 'Enter') fazerLogin(); });
@@ -469,10 +475,9 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 
   async function carregarProdutos() {
     try {
-      const { data, error } = await sb.from('produtos').select('*').order('nome');
+      const { data, error } = await sb.from('produtos').select('*').not('ativo', 'eq', false).order('nome');
       if (error) throw error;
       produtos = data || [];
-      console.log('Produtos carregados:', produtos.length, produtos);
       renderProdutos();
     } catch(e) {
       console.error('carregarProdutos erro:', e);
@@ -617,11 +622,13 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   }
 
   // ── SAÍDA / VENDA ─────────────────────────────────────────
-  function abrirSaida() {
+  async function abrirSaida() {
+    // Garante que os produtos estão carregados antes de abrir
     if (!produtos.length) {
-      alert('Nenhum produto encontrado.\n\nSe você já cadastrou produtos, recarregue a página (F5) e tente novamente.\n\nSe não cadastrou ainda, vá na aba "Produtos" e clique em "+ Novo produto".');
-      // Tenta recarregar produtos em background
-      carregarProdutos();
+      await carregarProdutos();
+    }
+    if (!produtos.length) {
+      alert('Nenhum produto cadastrado ainda.\n\nVá na aba "Produtos" e clique em "+ Novo produto".');
       return;
     }
     ['s-unidades','s-preco','s-cliente','s-obs'].forEach(id => document.getElementById(id).value='');
