@@ -391,7 +391,17 @@ const EMOJI = {pote:'🥃',sache:'🧴',pacote:'📦',outro:'📋'};
 const LABEL = {pote:'Pote',sache:'Sachê',pacote:'Pacote',outro:'Outro'};
 const R$ = n => (+n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const KG = n => (+n||0).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
-const NOW_ISO = () => new Date().toISOString().slice(0,10);
+const NOW_ISO = () => {
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+};
+// Data/hora local formatada para salvar no banco
+const agoraLocal = () => {
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+};
 const MES_ISO = () => new Date().toISOString().slice(0,7);
 
 let produtos = [];
@@ -573,7 +583,8 @@ async function confirmarEntrada() {
   const uid = (await SB.auth.getUser()).data?.user?.id || null;
   const {error} = await SB.from('movimentacoes').insert({
     tipo: 'entrada', qty_kg, produto_id: p.id, produto_nome: p.nome,
-    unidades: qtd, descricao: obs||null, user_id: uid
+    unidades: qtd, descricao: obs||null, user_id: uid,
+    criado_em: agoraLocal()
   });
   if (error) { alert('Erro: ' + error.message); btn.innerHTML='<span>📥</span><div><div>Confirmar entrada</div><div class="btn-sub">Adiciona ao estoque</div></div>'; btn.disabled=false; return; }
   // Limpar campos
@@ -704,7 +715,8 @@ async function confirmarVenda() {
         produto_id: p.id, produto_nome: p.nome,
         unidades: l.qtd, preco_total,
         vendedor: vendedor||null, conta: conta||null,
-        cliente: cliente||null, descricao: obs||null, user_id: uid
+        cliente: cliente||null, descricao: obs||null, user_id: uid,
+        criado_em: agoraLocal()
       });
       if (error) throw error;
     }
@@ -816,15 +828,9 @@ async function gerarRelatorio() {
   if (!de || !ate) return;
   const btn = document.getElementById('btn-rel');
   btn.innerHTML = '<span class="spinner"></span><div><div>Carregando...</div></div>'; btn.disabled = true;
-  // Converte datas locais para ISO com offset do timezone
-  const tzOffset = new Date().getTimezoneOffset();
-  const toISO = (dateStr, endOfDay) => {
-    const d = new Date(dateStr + (endOfDay ? 'T23:59:59' : 'T00:00:00'));
-    return new Date(d.getTime() - tzOffset * 60000).toISOString();
-  };
   const {data, error} = await SB.from('movimentacoes').select('*')
-    .gte('criado_em', toISO(de, false))
-    .lte('criado_em', toISO(ate, true))
+    .gte('criado_em', de+'T00:00:00')
+    .lte('criado_em', ate+'T23:59:59')
     .order('criado_em', {ascending: false});
   btn.innerHTML = '<span>📊</span><div><div>Gerar relatório</div><div class="btn-sub">Atualizar dados</div></div>'; btn.disabled = false;
   if (error) { toast('Erro: '+error.message); return; }
