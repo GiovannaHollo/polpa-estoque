@@ -384,7 +384,9 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const SB = supabase.createClient(window.__env.SUPABASE_URL, window.__env.SUPABASE_ANON_KEY);
+const SB = supabase.createClient(window.__env.SUPABASE_URL, window.__env.SUPABASE_ANON_KEY, {
+  auth: { persistSession: false, autoRefreshToken: true }
+});
 const EMOJI = {pote:'🥃',sache:'🧴',pacote:'📦',outro:'📋'};
 const LABEL = {pote:'Pote',sache:'Sachê',pacote:'Pacote',outro:'Outro'};
 const R$ = n => (+n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -401,7 +403,6 @@ SB.auth.onAuthStateChange((ev, session) => {
     document.getElementById('app').style.display = 'block';
     if (ev === 'SIGNED_IN' || ev === 'INITIAL_SESSION') {
       iniciar();
-      iniciarAutoLogout();
     }
   } else {
     document.getElementById('tela-login').style.display = 'flex';
@@ -409,20 +410,7 @@ SB.auth.onAuthStateChange((ev, session) => {
   }
 });
 
-// Auto-logout após 30 minutos de inatividade
-let _timerLogout;
-function iniciarAutoLogout() {
-  const MINS = 30;
-  const resetar = () => {
-    clearTimeout(_timerLogout);
-    _timerLogout = setTimeout(async () => {
-      await SB.auth.signOut();
-      window.location.reload();
-    }, MINS * 60 * 1000);
-  };
-  ['click','keydown','touchstart','scroll'].forEach(ev => document.addEventListener(ev, resetar, {passive:true}));
-  resetar();
-}
+
 
 function userId() {
   return SB.auth.getUser ? SB.auth.getUser().then(r => r.data?.user?.id) : Promise.resolve(null);
