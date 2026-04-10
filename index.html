@@ -284,7 +284,7 @@
       <div class="rel-atalhos">
         <button class="atalho on" onclick="atalho('hoje',this)">Hoje</button>
         <button class="atalho" onclick="atalho('semana',this)">7 dias</button>
-        <button class="atalho" onclick="atalho('mes',this)">Este mês</button>
+        <button class="atalho" id="btn-atalho-mes" onclick="atalho('mes',this)">Este mês</button>
         <button class="atalho" onclick="atalho('mes_ant',this)">Mês passado</button>
         <button class="atalho" onclick="atalho('ano',this)">Este ano</button>
       </div>
@@ -786,7 +786,7 @@ function irPara(aba) {
   document.getElementById('hd-sub').textContent = subtitulos[aba]||'';
   if (aba === 'entrada')   preencherSelectsEntrada();
   if (aba === 'venda')     preencherSelectsEntrada();
-  if (aba === 'relatorio') { atalho('mes', document.querySelector('.atalho')); }
+  if (aba === 'relatorio') { atalho('mes', document.getElementById('btn-atalho-mes')); }
 }
 
 
@@ -816,9 +816,15 @@ async function gerarRelatorio() {
   if (!de || !ate) return;
   const btn = document.getElementById('btn-rel');
   btn.innerHTML = '<span class="spinner"></span><div><div>Carregando...</div></div>'; btn.disabled = true;
+  // Converte datas locais para ISO com offset do timezone
+  const tzOffset = new Date().getTimezoneOffset();
+  const toISO = (dateStr, endOfDay) => {
+    const d = new Date(dateStr + (endOfDay ? 'T23:59:59' : 'T00:00:00'));
+    return new Date(d.getTime() - tzOffset * 60000).toISOString();
+  };
   const {data, error} = await SB.from('movimentacoes').select('*')
-    .gte('criado_em', de+'T00:00:00')
-    .lte('criado_em', ate+'T23:59:59')
+    .gte('criado_em', toISO(de, false))
+    .lte('criado_em', toISO(ate, true))
     .order('criado_em', {ascending: false});
   btn.innerHTML = '<span>📊</span><div><div>Gerar relatório</div><div class="btn-sub">Atualizar dados</div></div>'; btn.disabled = false;
   if (error) { toast('Erro: '+error.message); return; }
