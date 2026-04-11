@@ -11,7 +11,7 @@
   <style>
     :root{--g:#1e5c1e;--g2:#2d7a2d;--gbg:#e8f5e8;--gtx:#154415;--r:#b92c2c;--rbg:#fdeaea;--rtx:#7a1a1a;--b:#1a4fa0;--bbg:#e8f0fc;--bg:#f7f5f0;--sf:#fff;--bd:#e2ddd5;--tx:#1a1a18;--mu:#7a776e;--ra:14px;--rs:8px;--nh:62px}
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;padding-bottom:var(--nh)}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;padding-bottom:0}
 
     /* LOGIN */
     .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem;background:var(--bg)}
@@ -28,11 +28,12 @@
     .header .sub{font-size:12px;color:rgba(255,255,255,.6);margin-top:2px}
     .btn-logout{border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:20px;padding:4px 14px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer}
 
-    /* NAV */
-    .nav{position:fixed;bottom:0;left:0;right:0;height:var(--nh);background:var(--sf);border-top:1px solid var(--bd);display:flex;z-index:100}
-    .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:none;background:transparent;cursor:pointer;color:var(--mu);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;padding-bottom:4px}
-    .nav-btn.on{color:var(--g)}
-    .nav-icon{font-size:22px}
+    /* SIDEBAR */
+    .sb-btn{display:flex;align-items:center;gap:12px;width:100%;border:none;background:transparent;cursor:pointer;color:var(--tx);font-family:'DM Sans',sans-serif;font-size:15px;font-weight:400;padding:.75rem 1.25rem;text-align:left;transition:background .12s;border-radius:0}
+    .sb-btn span:first-child{font-size:20px;width:28px;text-align:center;flex-shrink:0}
+    .sb-btn:hover{background:var(--bg)}
+    .sb-btn.on{background:var(--gbg);color:var(--gtx);font-weight:600}
+    .badge-fiado{background:#fff3cd;color:#856404;border-radius:20px;font-size:10px;font-weight:600;padding:2px 7px;margin-left:auto}
 
     /* TABS */
     .tab{display:none}.tab.on{display:block}
@@ -175,12 +176,13 @@
 <!-- APP -->
 <div id="app" style="display:none">
 
-  <div class="header">
-    <div>
-      <h1>🌿 Polpa de Maracujá</h1>
-      <div class="sub" id="hd-sub">Estoque</div>
+  <div class="header" style="padding:1rem 1.25rem">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button onclick="abrirSidebar()" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:var(--rs);width:36px;height:36px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">☰</button>
+      <div>
+        <div style="font-size:17px;font-weight:600;color:#fff;line-height:1.2" id="hd-sub">Estoque</div>
+      </div>
     </div>
-    <button class="btn-logout" onclick="logout()">Sair</button>
   </div>
 
   <!-- ABA: ESTOQUE -->
@@ -192,7 +194,7 @@
         <div class="un">kg disponíveis</div>
       </div>
       <div class="card"><div class="lbl">🏡 Sítio</div><div class="val" id="v-sitio">—</div><div class="un">kg</div></div>
-      <div class="card"><div class="lbl">🏠 Casa Prudente</div><div class="val" id="v-casa">—</div><div class="un">kg</div></div>
+      <div class="card"><div class="lbl">🏠 PP</div><div class="val" id="v-casa">—</div><div class="un">kg</div></div>
       <div class="card"><div class="lbl">Entradas hoje</div><div class="val" id="v-en">—</div><div class="un">kg</div></div>
       <div class="card"><div class="lbl">Saídas hoje</div><div class="val" id="v-sa">—</div><div class="un">kg</div></div>
     </div>
@@ -235,7 +237,7 @@
       <div class="f"><label>Estoque de destino</label>
         <select id="en-local">
           <option value="Sítio">Sítio</option>
-          <option value="Casa Prudente">Casa Prudente</option>
+          <option value="PP">PP</option>
         </select>
       </div>
       <div class="f"><label>Observação (opcional)</label><input type="text" id="en-obs" placeholder="Ex: Produção da semana"/></div>
@@ -262,7 +264,7 @@
       <div class="f"><label>Estoque de saída</label>
         <select id="vd-local" onchange="recarregarTodosDisponiveis()">
           <option value="Sítio">Sítio</option>
-          <option value="Casa Prudente">Casa Prudente</option>
+          <option value="PP">PP</option>
         </select>
       </div>
       <div class="f"><label>Vendedor(a)</label>
@@ -286,6 +288,14 @@
       </div>
       <div class="f"><label>Cliente (opcional)</label><input type="text" id="vd-cliente" placeholder="Ex: Mercado Central"/></div>
       <div class="f"><label>Observação (opcional)</label><input type="text" id="vd-obs" placeholder="Ex: Entrega agendada"/></div>
+      <div style="display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:var(--rs);padding:.85rem 1rem;margin-bottom:1rem;border:1.5px solid var(--bd)" id="fiado-wrap">
+        <input type="checkbox" id="vd-fiado" style="width:18px;height:18px;cursor:pointer;accent-color:var(--r)" onchange="toggleFiado()"/>
+        <label for="vd-fiado" style="font-size:15px;font-weight:500;cursor:pointer;flex:1">Venda fiada <span style="font-size:12px;color:var(--mu);font-weight:400">(pagamento pendente)</span></label>
+      </div>
+      <div class="f" id="fiado-cliente-wrap" style="display:none">
+        <label>Nome do fiado (obrigatório)</label>
+        <input type="text" id="vd-fiado-nome" placeholder="Ex: João da Silva"/>
+      </div>
 
       <button class="btn-grande btn-verm" onclick="confirmarVenda()" id="btn-vd" style="margin-top:.5rem">
         <span>📤</span><div><div>Confirmar venda</div><div class="btn-sub">Desconta do estoque</div></div>
@@ -362,6 +372,19 @@
   </div>
 
 
+
+  <!-- ABA: FIADO -->
+  <div class="tab" id="tab-fiado">
+    <div class="page-pad">
+      <div class="sec-header">
+        <div class="sec-title">Vendas fiadas pendentes</div>
+        <div id="fiado-total-badge" style="font-size:13px;font-weight:600;color:var(--r)"></div>
+      </div>
+      <div id="lista-fiado"><div class="vazio"><div class="vazio-i">⏳</div>Carregando...</div></div>
+    </div>
+    <div class="footer">Dados sincronizados em tempo real</div>
+  </div>
+
   <!-- ABA: TRANSFERÊNCIA -->
   <div class="tab" id="tab-transf">
     <div class="page-pad">
@@ -375,12 +398,12 @@
       <div class="f"><label>Origem</label>
         <select id="tr-origem" onchange="onTrOrigem()">
           <option value="Sítio">Sítio</option>
-          <option value="Casa Prudente">Casa Prudente</option>
+          <option value="PP">PP</option>
         </select>
       </div>
       <div class="f"><label>Destino</label>
         <select id="tr-destino">
-          <option value="Casa Prudente">Casa Prudente</option>
+          <option value="PP">PP</option>
           <option value="Sítio">Sítio</option>
         </select>
       </div>
@@ -398,15 +421,60 @@
     <div class="footer">Dados sincronizados em tempo real</div>
   </div>
 
-  <!-- NAV -->
-  <nav class="nav">
-    <button class="nav-btn on" id="nav-estoque" onclick="irPara('estoque')"><span class="nav-icon">📦</span><span>Estoque</span></button>
-    <button class="nav-btn" id="nav-produtos" onclick="irPara('produtos')"><span class="nav-icon">🏷️</span><span>Produtos</span></button>
-    <button class="nav-btn" id="nav-entrada" onclick="irPara('entrada')"><span class="nav-icon">📥</span><span>Entrada</span></button>
-    <button class="nav-btn" id="nav-venda" onclick="irPara('venda')"><span class="nav-icon">📤</span><span>Venda</span></button>
-    <button class="nav-btn" id="nav-transf" onclick="irPara('transf')"><span class="nav-icon">🔄</span><span>Transfer.</span></button>
-    <button class="nav-btn" id="nav-relatorio" onclick="irPara('relatorio')"><span class="nav-icon">📊</span><span>Relatório</span></button>
+  <!-- SIDEBAR -->
+  <div id="sidebar-overlay" onclick="fecharSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300"></div>
+  <nav id="sidebar" style="position:fixed;top:0;left:-280px;width:260px;height:100vh;background:var(--sf);z-index:301;transition:left .25s ease;box-shadow:4px 0 20px rgba(0,0,0,.15);display:flex;flex-direction:column;overflow:hidden">
+    <div style="background:var(--g);padding:1.5rem 1.25rem 1rem;flex-shrink:0">
+      <div style="font-size:18px;font-weight:600;color:#fff">🌿 Polpa de Maracujá</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:3px" id="sb-user">—</div>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:.5rem 0">
+      <button class="sb-btn on" id="nav-estoque" onclick="irPara('estoque')"><span>📦</span><span>Estoque</span></button>
+      <button class="sb-btn" id="nav-entrada" onclick="irPara('entrada')"><span>📥</span><span>Entrada de estoque</span></button>
+      <button class="sb-btn" id="nav-venda" onclick="irPara('venda')"><span>📤</span><span>Registrar venda</span></button>
+      <button class="sb-btn" id="nav-fiado" onclick="irPara('fiado')"><span>🕐</span><span>Fiado</span></button>
+      <button class="sb-btn" id="nav-transf" onclick="irPara('transf')"><span>🔄</span><span>Transferência</span></button>
+      <div style="height:1px;background:var(--bd);margin:.5rem 1rem"></div>
+      <button class="sb-btn" id="nav-produtos" onclick="irPara('produtos')"><span>🏷️</span><span>Produtos</span></button>
+      <button class="sb-btn" id="nav-relatorio" onclick="irPara('relatorio')"><span>📊</span><span>Relatório</span></button>
+    </div>
+    <div style="padding:1rem;border-top:1px solid var(--bd);flex-shrink:0">
+      <button onclick="logout()" style="width:100%;border:none;background:var(--rbg);color:var(--r);border-radius:var(--rs);padding:.7rem;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Sair</button>
+    </div>
   </nav>
+</div>
+
+
+<!-- MODAL MARCAR PAGO -->
+<div class="ov" id="ov-pago" onclick="fecharOvSeFora(event,'ov-pago')">
+  <div class="modal">
+    <div class="modal-hd">
+      <h2>✅ Confirmar pagamento</h2>
+      <button class="btn-x" onclick="fechar('ov-pago')">✕</button>
+    </div>
+    <div id="pago-info" style="background:var(--gbg);border-radius:var(--rs);padding:.85rem 1rem;margin-bottom:1rem;font-size:14px;color:var(--gtx)"></div>
+    <div class="f">
+      <label>Conta que recebeu</label>
+      <select id="pago-conta">
+        <option value="">— selecione —</option>
+        <option value="Adão Dinheiro">Adão Dinheiro</option>
+        <option value="Adão Banco">Adão Banco</option>
+        <option value="Vitor Dinheiro">Vitor Dinheiro</option>
+        <option value="Vitor Banco">Vitor Banco</option>
+        <option value="Amostra">Amostra</option>
+        <option value="Uso próprio">Uso próprio</option>
+      </select>
+    </div>
+    <div class="f">
+      <label>Observação (opcional)</label>
+      <input type="text" id="pago-obs" placeholder="Ex: Pago em dinheiro"/>
+    </div>
+    <input type="hidden" id="pago-id"/>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="fechar('ov-pago')">Cancelar</button>
+      <button class="btn-ok-g" onclick="confirmarPagamento()">Marcar como pago</button>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL PRODUTO -->
@@ -808,8 +876,10 @@ async function confirmarVenda() {
   // Validar linhas
   const linhasValidas = linhasVenda.filter(l => l.prodId && l.qtd > 0);
   if (!linhasValidas.length) { alert('Adicione ao menos um produto com quantidade.'); return; }
+  const isFiadoVenda = document.getElementById('vd-fiado').checked;
   if (!vendedor) { alert('Informe o vendedor(a).'); return; }
-  if (!conta)    { alert('Informe a conta que recebeu.'); return; }
+  if (!isFiadoVenda && !conta) { alert('Informe a conta que recebeu.'); return; }
+  if (isFiadoVenda && !document.getElementById('vd-fiado-nome').value.trim()) { alert('Informe o nome do fiado.'); return; }
 
   // Validar estoque disponível por produto NO LOCAL SELECIONADO
   for (const l of linhasValidas) {
@@ -839,13 +909,18 @@ async function confirmarVenda() {
       const qty_kg = (p.peso_g * l.qtd) / 1000;
       const preco_total = l.preco > 0 ? l.preco * l.qtd : null;
       const uid = (await SB.auth.getUser()).data?.user?.id || null;
+      const isFiado = document.getElementById('vd-fiado').checked;
+      const fiadoNome = document.getElementById('vd-fiado-nome').value.trim();
       const {error} = await SB.from('movimentacoes').insert({
         tipo: 'saida', qty_kg,
         produto_id: p.id, produto_nome: p.nome,
         unidades: l.qtd, preco_total,
-        vendedor: vendedor||null, conta: conta||null,
+        vendedor: vendedor||null, conta: isFiado ? null : (conta||null),
         cliente: cliente||null, descricao: obs||null, user_id: uid,
         local: localVenda,
+        fiado: isFiado,
+        fiado_nome: isFiado ? fiadoNome||null : null,
+        fiado_pago: isFiado ? false : null,
         criado_em: agoraLocal()
       });
       if (error) throw error;
@@ -885,7 +960,7 @@ async function carregarDados() {
 
   // Por local
   const kgSitio = movs.filter(m=>m.local==='Sítio').reduce((a,m)=>a+(m.tipo==='entrada'? +m.qty_kg : -m.qty_kg),0);
-  const kgCasa  = movs.filter(m=>m.local==='Casa Prudente').reduce((a,m)=>a+(m.tipo==='entrada'? +m.qty_kg : -m.qty_kg),0);
+  const kgCasa  = movs.filter(m=>m.local==='PP').reduce((a,m)=>a+(m.tipo==='entrada'? +m.qty_kg : -m.qty_kg),0);
   document.getElementById('v-sitio').textContent = KG(Math.max(0,kgSitio));
   document.getElementById('v-casa').textContent  = KG(Math.max(0,kgCasa));
 
@@ -898,7 +973,7 @@ async function carregarDados() {
     const delta = m.tipo==='entrada' ? +m.qty_kg : -m.qty_kg;
     porProd[key].total += delta;
     if (m.local==='Sítio')          porProd[key].sitio += delta;
-    else if (m.local==='Casa Prudente') porProd[key].casa  += delta;
+    else if (m.local==='PP') porProd[key].casa  += delta;
     else porProd[key].total += 0; // sem local definido já somado no total
   });
   const elProd = document.getElementById('estoque-por-produto');
@@ -911,7 +986,7 @@ async function carregarDados() {
         <div class="item-body">
           <div class="item-nome">${p.nome}</div>
           <div class="item-det">
-            🏡 Sítio: ${KG(Math.max(0,p.sitio))} kg &nbsp;·&nbsp; 🏠 Casa Prudente: ${KG(Math.max(0,p.casa))} kg
+            🏡 Sítio: ${KG(Math.max(0,p.sitio))} kg &nbsp;·&nbsp; 🏠 PP: ${KG(Math.max(0,p.casa))} kg
           </div>
         </div>
         <div class="item-val g">${KG(Math.max(0,p.total))} kg</div>
@@ -932,6 +1007,7 @@ async function carregarDados() {
   el.innerHTML = recentes.map(m => {
     const dt = new Date(m.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     const isE = m.tipo === 'entrada';
+    const isFiado = m.fiado === true;
     const titulo = m.produto_nome || (isE ? 'Entrada de estoque' : 'Saída');
     const partes = [];
     if (m.vendedor) partes.push('👤 '+m.vendedor);
@@ -939,11 +1015,11 @@ async function carregarDados() {
     if (m.cliente)  partes.push('🛒 '+m.cliente);
     if (m.unidades) partes.push(m.unidades+' un.');
     const sub = partes.join(' · ') || dt;
-    return `<div class="item">
-      <div class="item-icon ${isE?'g':'r'}">${isE?'📥':'📤'}</div>
+    return `<div class="item" style="${isFiado && !m.fiado_pago ? 'border-left:3px solid var(--r)' : ''}">
+      <div class="item-icon ${isE?'g':isFiado&&!m.fiado_pago?'r':'r'}">${isE?'📥':'📤'}</div>
       <div class="item-body">
         <div class="item-nome">${titulo}</div>
-        <div class="item-det">${sub}</div>
+        <div class="item-det">${sub}${isFiado ? ' · <span style="color:var(--r);font-weight:600">'+(m.fiado_pago?'✅ Pago':'🕐 FIADO — '+( m.fiado_nome||m.cliente||'')+'')+'</span>' : ''}</div>
         <div class="item-det" style="font-size:11px;opacity:.6">${dt}</div>
       </div>
       <div class="item-val ${isE?'g':'r'}">${isE?'+':'−'}${KG(m.qty_kg)} kg</div>
@@ -952,17 +1028,34 @@ async function carregarDados() {
 }
 
 // ── NAVEGAÇÃO ──────────────────────────────────────────────────
-const subtitulos = {estoque:'Controle de estoque',produtos:'Produtos cadastrados',entrada:'Registrar entrada',venda:'Registrar venda',transf:'Transferência de estoque',relatorio:'Relatórios'};
+const subtitulos = {estoque:'Controle de estoque',entrada:'Entrada de estoque',venda:'Registrar venda',fiado:'Fiado — pendentes',transf:'Transferência de estoque',produtos:'Produtos',relatorio:'Relatórios'};
 function irPara(aba) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.sb-btn').forEach(b => b.classList.remove('on'));
   document.getElementById('tab-'+aba).classList.add('on');
-  document.getElementById('nav-'+aba).classList.add('on');
+  const navEl = document.getElementById('nav-'+aba);
+  if (navEl) navEl.classList.add('on');
   document.getElementById('hd-sub').textContent = subtitulos[aba]||'';
+  fecharSidebar();
   if (aba === 'entrada')   preencherSelectsEntrada();
-  if (aba === 'venda')     preencherSelectsEntrada();
-  if (aba === 'transf')    { preencherSelectTransf(); }
-  if (aba === 'relatorio') { atalho('mes', document.getElementById('btn-atalho-mes')); }
+  if (aba === 'venda')     { preencherSelectsEntrada(); resetVenda(); }
+  if (aba === 'fiado')     carregarFiado();
+  if (aba === 'transf')    preencherSelectTransf();
+  if (aba === 'relatorio') atalho('mes', document.getElementById('btn-atalho-mes'));
+}
+
+function abrirSidebar() {
+  document.getElementById('sidebar').style.left = '0';
+  document.getElementById('sidebar-overlay').style.display = 'block';
+  // Mostrar email do usuário
+  SB.auth.getUser().then(r => {
+    const el = document.getElementById('sb-user');
+    if (el) el.textContent = r.data?.user?.email || '';
+  });
+}
+function fecharSidebar() {
+  document.getElementById('sidebar').style.left = '-280px';
+  document.getElementById('sidebar-overlay').style.display = 'none';
 }
 
 
@@ -986,7 +1079,7 @@ async function onTrOrigem() {
   const origem = document.getElementById('tr-origem').value;
   // Auto-selecionar destino oposto
   const destino = document.getElementById('tr-destino');
-  destino.value = origem === 'Sítio' ? 'Casa Prudente' : 'Sítio';
+  destino.value = origem === 'Sítio' ? 'PP' : 'Sítio';
   // Mostrar disponível na origem
   const {data} = await SB.from('movimentacoes').select('tipo,qty_kg,local').eq('produto_id', id);
   const kg = (data||[]).filter(m=>m.local===origem).reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0);
@@ -1053,6 +1146,89 @@ async function confirmarTransferencia() {
   await carregarDados();
   irPara('estoque');
   toast(`✓ ${KG(kg)} kg transferidos: ${origem} → ${destino}`);
+}
+
+
+// ── FIADO ─────────────────────────────────────────────────────
+function toggleFiado() {
+  const fiado = document.getElementById('vd-fiado').checked;
+  const wrap = document.getElementById('fiado-cliente-wrap');
+  const fiadoWrap = document.getElementById('fiado-wrap');
+  wrap.style.display = fiado ? 'block' : 'none';
+  fiadoWrap.style.borderColor = fiado ? 'var(--r)' : 'var(--bd)';
+  fiadoWrap.style.background = fiado ? 'var(--rbg)' : 'var(--bg)';
+}
+
+function resetVenda() {
+  document.getElementById('vd-fiado').checked = false;
+  document.getElementById('vd-fiado-nome').value = '';
+  document.getElementById('fiado-cliente-wrap').style.display = 'none';
+  document.getElementById('fiado-wrap').style.borderColor = 'var(--bd)';
+  document.getElementById('fiado-wrap').style.background = 'var(--bg)';
+}
+
+async function carregarFiado() {
+  const el = document.getElementById('lista-fiado');
+  el.innerHTML = '<div class="vazio"><div class="vazio-i">⏳</div>Carregando...</div>';
+  const {data, error} = await SB.from('movimentacoes')
+    .select('*')
+    .eq('tipo', 'saida')
+    .eq('fiado', true)
+    .eq('fiado_pago', false)
+    .order('criado_em', {ascending: false});
+  if (error) { el.innerHTML = '<div class="vazio">Erro ao carregar.</div>'; return; }
+  const movs = data || [];
+  // Badge total
+  const total = movs.reduce((a,m) => a + (+m.preco_total||0), 0);
+  const badge = document.getElementById('fiado-total-badge');
+  badge.textContent = movs.length ? `${movs.length} pendente${movs.length>1?'s':''} · ${R$(total)}` : '';
+  if (!movs.length) {
+    el.innerHTML = '<div class="vazio"><div class="vazio-i">✅</div>Nenhum fiado pendente!</div>';
+    return;
+  }
+  const fmtDt = s => new Date(s).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+  el.innerHTML = movs.map(m => `
+    <div class="item" style="border-left:3px solid var(--r);margin-bottom:8px">
+      <div class="item-body">
+        <div class="item-nome" style="display:flex;align-items:center;gap:8px">
+          <span style="background:var(--rbg);color:var(--r);font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px">FIADO</span>
+          ${m.fiado_nome||m.cliente||'Sem nome'}
+        </div>
+        <div class="item-det">${m.produto_nome||'—'} · ${KG(m.qty_kg)} kg · ${fmtDt(m.criado_em)}</div>
+        <div class="item-det">${m.vendedor||''} ${m.local?' · '+m.local:''}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+        <div class="item-val r">${m.preco_total?R$(m.preco_total):'—'}</div>
+        <button class="btn-sm btn-sm-g" style="font-size:12px" onclick="abrirMarcarPago('${m.id}','${(m.fiado_nome||m.cliente||'').replace(/'/g,"\'")}',${m.preco_total||0})">✓ Pago</button>
+      </div>
+    </div>`).join('');
+}
+
+function abrirMarcarPago(id, nome, valor) {
+  document.getElementById('pago-id').value = id;
+  document.getElementById('pago-conta').value = '';
+  document.getElementById('pago-obs').value = '';
+  document.getElementById('pago-info').innerHTML =
+    `<strong>${nome}</strong> · ${R$(valor)}`;
+  abrir('ov-pago');
+}
+
+async function confirmarPagamento() {
+  const id    = document.getElementById('pago-id').value;
+  const conta = document.getElementById('pago-conta').value;
+  const obs   = document.getElementById('pago-obs').value.trim();
+  if (!conta) { alert('Informe a conta que recebeu o pagamento.'); return; }
+  const {error} = await SB.from('movimentacoes').update({
+    fiado_pago: true,
+    conta: conta,
+    fiado_pago_em: agoraLocal(),
+    descricao: obs || null
+  }).eq('id', id);
+  if (error) { alert('Erro: '+error.message); return; }
+  fechar('ov-pago');
+  await carregarFiado();
+  await carregarDados();
+  toast('✅ Pagamento registrado!');
 }
 
 // ── RELATÓRIO ─────────────────────────────────────────────────
@@ -1150,7 +1326,7 @@ function renderRelatorio(data) {
       <td>${m.vendedor||'—'}</td>
       <td>${m.conta||'—'}</td>
       <td class="td-r">${m.tipo==='entrada'?'+':'−'}${KG(m.qty_kg)}</td>
-      <td class="td-r">${m.preco_total?R$(m.preco_total):'—'}</td>
+      <td class="td-r">${m.preco_total?R$(m.preco_total):'—'}${m.fiado&&!m.fiado_pago?'<br><span style="color:var(--r);font-size:10px;font-weight:600">FIADO</span>':m.fiado&&m.fiado_pago?'<br><span style="color:var(--g2);font-size:10px;font-weight:600">✅ PAGO</span>':''}</td>
     </tr>`).join('');
   }
   show('r-bloco-tab');
