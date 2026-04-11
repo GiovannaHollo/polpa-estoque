@@ -260,7 +260,7 @@
       <div id="venda-total" style="display:none;background:var(--gbg);border-radius:var(--rs);padding:.75rem 1rem;margin-bottom:1rem;font-size:14px;color:var(--gtx)"></div>
 
       <div class="f"><label>Estoque de saída</label>
-        <select id="vd-local">
+        <select id="vd-local" onchange="recarregarTodosDisponiveis()">
           <option value="Sítio">Sítio</option>
           <option value="Casa Prudente">Casa Prudente</option>
         </select>
@@ -734,13 +734,27 @@ function renderLinhasVenda() {
 async function carregarDisponivelLinha(lid, prodId) {
   const el = document.getElementById('disp-txt-'+lid);
   if (!el) return;
-  const {data} = await SB.from('movimentacoes').select('tipo, qty_kg').eq('produto_id', prodId);
-  const kg = (data||[]).reduce((a,m) => a + (m.tipo==='entrada' ? +m.qty_kg : -m.qty_kg), 0);
-  const disp = Math.max(0, kg);
+  // Pega o local selecionado NA VENDA para filtrar corretamente
+  const localSel = document.getElementById('vd-local')?.value || '';
+  let query = SB.from('movimentacoes').select('tipo, qty_kg, local').eq('produto_id', prodId);
+  const {data} = await query;
+  // Calcula disponível apenas no local selecionado (se local definido)
+  const movs = data || [];
+  const dispLocal = movs
+    .filter(m => !localSel || m.local === localSel)
+    .reduce((a,m) => a + (m.tipo==='entrada' ? +m.qty_kg : -m.qty_kg), 0);
+  const disp = Math.max(0, dispLocal);
   const l = linhasVenda.find(x => x.id === lid);
   if (l) l._disp = disp;
-  el.style.color = (l && l.qtd && (produtos.find(p=>p.id===prodId)?.peso_g||0)*l.qtd/1000 > disp) ? 'var(--r)' : 'var(--mu)';
-  el.textContent = KG(disp)+' kg disponíveis';
+  const kgSolicitado = l && l.qtd ? (produtos.find(p=>p.id===prodId)?.peso_g||0)*l.qtd/1000 : 0;
+  el.style.color = kgSolicitado > disp ? 'var(--r)' : 'var(--g2)';
+  el.textContent = localSel
+    ? `${KG(disp)} kg disponíveis em ${localSel}`
+    : `${KG(disp)} kg disponíveis`;
+}
+
+function recarregarTodosDisponiveis() {
+  linhasVenda.filter(l => l.prodId).forEach(l => carregarDisponivelLinha(l.id, l.prodId));
 }
 
 function onVdProduto(lid) {
@@ -797,14 +811,20 @@ async function confirmarVenda() {
   if (!vendedor) { alert('Informe o vendedor(a).'); return; }
   if (!conta)    { alert('Informe a conta que recebeu.'); return; }
 
-  // Validar estoque disponível por produto
+  // Validar estoque disponível por produto NO LOCAL SELECIONADO
   for (const l of linhasValidas) {
     const p = produtos.find(x => x.id === l.prodId);
     if (!p) continue;
     const kg = (p.peso_g * l.qtd) / 1000;
-    const disp = l._disp !== undefined ? l._disp : null;
-    if (disp !== null && kg > disp + 0.001) {
-      alert(`Estoque insuficiente para "${p.nome}"!\n\nDisponível: ${KG(disp)} kg\nSolicitado: ${KG(kg)} kg\n\nAjuste a quantidade antes de confirmar.`);
+    // Busca estoque em tempo real no local selecionado para garantir consistência
+    const {data: movsCheck} = await SB.from('movimentacoes')
+      .select('tipo, qty_kg, local')
+      .eq('produto_id', p.id);
+    const dispLocal = Math.max(0, (movsCheck||[])
+      .filter(m => m.local === localVenda)
+      .reduce((a,m) => a + (m.tipo==='entrada' ? +m.qty_kg : -m.qty_kg), 0));
+    if (kg > dispLocal + 0.001) {
+      alert(`Estoque insuficiente em ${localVenda} para "${p.nome}"!\n\nDisponível: ${KG(dispLocal)} kg\nSolicitado: ${KG(kg)} kg\n\nAjuste a quantidade ou o estoque de saída.`);
       return;
     }
   }
