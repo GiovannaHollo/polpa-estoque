@@ -948,17 +948,18 @@ async function carregarDados() {
   if (error) { console.error(error); return; }
   const movs = data || [];
 
-  // Resumo total
+  // Resumo total — excluindo transferências dos cards de entradas/saídas do dia
   const est  = movs.reduce((a,m) => a + (m.tipo==='entrada' ? +m.qty_kg : -m.qty_kg), 0);
   const hoje = NOW_ISO();
-  const enHj = movs.filter(m=>m.tipo==='entrada'&&m.criado_em?.startsWith(hoje)).reduce((a,m)=>a+ +m.qty_kg,0);
-  const saHj = movs.filter(m=>m.tipo==='saida'  &&m.criado_em?.startsWith(hoje)).reduce((a,m)=>a+ +m.qty_kg,0);
+  // Entradas e saídas reais do dia (sem transferências)
+  const enHj = movs.filter(m=>m.tipo==='entrada'&&!m.is_transferencia&&m.criado_em?.startsWith(hoje)).reduce((a,m)=>a+ +m.qty_kg,0);
+  const saHj = movs.filter(m=>m.tipo==='saida'  &&!m.is_transferencia&&m.criado_em?.startsWith(hoje)).reduce((a,m)=>a+ +m.qty_kg,0);
 
   document.getElementById('v-est').textContent = KG(Math.max(0,est));
   document.getElementById('v-en').textContent  = KG(enHj);
   document.getElementById('v-sa').textContent  = KG(saHj);
 
-  // Por local
+  // Por local (transferências contam para mover kg entre locais — correto)
   const kgSitio = movs.filter(m=>m.local==='Sítio').reduce((a,m)=>a+(m.tipo==='entrada'? +m.qty_kg : -m.qty_kg),0);
   const kgCasa  = movs.filter(m=>m.local==='PP').reduce((a,m)=>a+(m.tipo==='entrada'? +m.qty_kg : -m.qty_kg),0);
   document.getElementById('v-sitio').textContent = KG(Math.max(0,kgSitio));
@@ -1007,6 +1008,7 @@ async function carregarDados() {
   el.innerHTML = recentes.map(m => {
     const dt = new Date(m.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     const isE = m.tipo === 'entrada';
+    const isTransf = m.is_transferencia === true;
     const isFiado = m.fiado === true;
     const titulo = m.produto_nome || (isE ? 'Entrada de estoque' : 'Saída');
     const partes = [];
@@ -1015,8 +1017,8 @@ async function carregarDados() {
     if (m.cliente)  partes.push('🛒 '+m.cliente);
     if (m.unidades) partes.push(m.unidades+' un.');
     const sub = partes.join(' · ') || dt;
-    return `<div class="item" style="${isFiado && !m.fiado_pago ? 'border-left:3px solid var(--r)' : ''}">
-      <div class="item-icon ${isE?'g':isFiado&&!m.fiado_pago?'r':'r'}">${isE?'📥':'📤'}</div>
+    return `<div class="item" style="${isFiado && !m.fiado_pago ? 'border-left:3px solid var(--r)' : isTransf ? 'border-left:3px solid var(--b)' : ''}">
+      <div class="item-icon ${isTransf ? '' : isE ? 'g' : 'r'}">${isTransf ? '🔄' : isE ? '📥' : '📤'}</div>
       <div class="item-body">
         <div class="item-nome">${titulo}</div>
         <div class="item-det">${sub}${isFiado ? ' · <span style="color:var(--r);font-weight:600">'+(m.fiado_pago?'✅ Pago':'🕐 FIADO — '+( m.fiado_nome||m.cliente||'')+'')+'</span>' : ''}</div>
@@ -1124,13 +1126,13 @@ async function confirmarTransferencia() {
   const r1 = await SB.from('movimentacoes').insert({
     tipo:'saida', qty_kg:kg, produto_id:p.id, produto_nome:p.nome,
     unidades:qtd, local:origem, descricao:`Transferência → ${destino}`,
-    user_id:uid, criado_em:ts
+    user_id:uid, criado_em:ts, is_transferencia:true
   });
   // Entrada no destino
   const r2 = await SB.from('movimentacoes').insert({
     tipo:'entrada', qty_kg:kg, produto_id:p.id, produto_nome:p.nome,
     unidades:qtd, local:destino, descricao:`Transferência ← ${origem}`,
-    user_id:uid, criado_em:ts
+    user_id:uid, criado_em:ts, is_transferencia:true
   });
 
   btn.innerHTML = '<span>🔄</span><div><div>Confirmar transferência</div><div class="btn-sub">Move kg entre estoques</div></div>'; btn.disabled=false;
@@ -1269,8 +1271,8 @@ async function gerarRelatorio() {
 
 function renderRelatorio(data) {
   const show = id => document.getElementById(id).style.display = 'block';
-  const entradas = data.filter(m => m.tipo==='entrada');
-  const saidas   = data.filter(m => m.tipo==='saida');
+  const entradas = data.filter(m => m.tipo==='entrada' && !m.is_transferencia);
+  const saidas   = data.filter(m => m.tipo==='saida'   && !m.is_transferencia);
 
   // KPIs
   const fat   = saidas.reduce((a,m)=>a+(+m.preco_total||0),0);
