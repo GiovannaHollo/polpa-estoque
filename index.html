@@ -263,6 +263,8 @@
           <option value="Adão Banco">Adão Banco</option>
           <option value="Vitor Dinheiro">Vitor Dinheiro</option>
           <option value="Vitor Banco">Vitor Banco</option>
+          <option value="Amostra">Amostra</option>
+          <option value="Uso próprio">Uso próprio</option>
         </select>
       </div>
       <div class="f"><label>Cliente (opcional)</label><input type="text" id="vd-cliente" placeholder="Ex: Mercado Central"/></div>
@@ -421,6 +423,16 @@ SB.auth.onAuthStateChange((ev, session) => {
 });
 
 
+
+// Calcula estoque total em kg a partir das movimentações carregadas
+function estoqueDisponivel() {
+  // Usa os dados já carregados em _dadosCache ou faz query
+  // Retorna promessa com mapa {produto_id: kg_disponivel}
+  return SB.from('movimentacoes').select('tipo, qty_kg').then(({data}) => {
+    const tot = (data||[]).reduce((a,m) => a + (m.tipo==='entrada' ? +m.qty_kg : -m.qty_kg), 0);
+    return Math.max(0, tot);
+  });
+}
 
 function userId() {
   return SB.auth.getUser ? SB.auth.getUser().then(r => r.data?.user?.id) : Promise.resolve(null);
@@ -643,9 +655,26 @@ function renderLinhasVenda() {
           <input type="number" class="vd-preco-in" data-lid="${l.id}" value="${l.preco||''}" placeholder="Ex: 15,00" min="0" step="0.01" inputmode="decimal" oninput="onVdPreco('${l.id}')" />
         </div>
       </div>
-      ${l.prodId && l.qtd ? `<div class="prod-linha-calc">${KG((produtos.find(p=>p.id===l.prodId)?.peso_g||0)*l.qtd/1000)} kg${l.preco&&l.qtd?' · '+R$(l.preco*l.qtd):''}` : ''}
+      ${l.prodId ? `<div class="prod-linha-calc" id="disp-${l.id}">
+        ${l.qtd ? KG((produtos.find(p=>p.id===l.prodId)?.peso_g||0)*l.qtd/1000)+' kg nesta venda · ' : ''}
+        <span id="disp-txt-${l.id}" style="color:var(--mu)">calculando disponível...</span>
+      </div>` : ''}
     </div>`).join('');
+  // Carregar kg disponível para cada linha com produto selecionado
+  linhasVenda.filter(l=>l.prodId).forEach(l => carregarDisponivelLinha(l.id, l.prodId));
   atualizarTotalVenda();
+}
+
+async function carregarDisponivelLinha(lid, prodId) {
+  const el = document.getElementById('disp-txt-'+lid);
+  if (!el) return;
+  const {data} = await SB.from('movimentacoes').select('tipo, qty_kg').eq('produto_id', prodId);
+  const kg = (data||[]).reduce((a,m) => a + (m.tipo==='entrada' ? +m.qty_kg : -m.qty_kg), 0);
+  const disp = Math.max(0, kg);
+  const l = linhasVenda.find(x => x.id === lid);
+  if (l) l._disp = disp;
+  el.style.color = (l && l.qtd && (produtos.find(p=>p.id===prodId)?.peso_g||0)*l.qtd/1000 > disp) ? 'var(--r)' : 'var(--mu)';
+  el.textContent = KG(disp)+' kg disponíveis';
 }
 
 function onVdProduto(lid) {
@@ -657,6 +686,7 @@ function onVdProduto(lid) {
     l.preco = p.preco_sug;
   }
   renderLinhasVenda();
+  if (l.prodId) carregarDisponivelLinha(lid, l.prodId);
 }
 
 function onVdQtd(lid) {
@@ -699,6 +729,18 @@ async function confirmarVenda() {
   if (!linhasValidas.length) { alert('Adicione ao menos um produto com quantidade.'); return; }
   if (!vendedor) { alert('Informe o vendedor(a).'); return; }
   if (!conta)    { alert('Informe a conta que recebeu.'); return; }
+
+  // Validar estoque disponível por produto
+  for (const l of linhasValidas) {
+    const p = produtos.find(x => x.id === l.prodId);
+    if (!p) continue;
+    const kg = (p.peso_g * l.qtd) / 1000;
+    const disp = l._disp !== undefined ? l._disp : null;
+    if (disp !== null && kg > disp + 0.001) {
+      alert(`Estoque insuficiente para "${p.nome}"!\n\nDisponível: ${KG(disp)} kg\nSolicitado: ${KG(kg)} kg\n\nAjuste a quantidade antes de confirmar.`);
+      return;
+    }
+  }
 
   const btn = document.getElementById('btn-vd');
   btn.innerHTML = '<span class="spinner"></span>Salvando...'; btn.disabled = true;
