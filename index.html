@@ -191,9 +191,14 @@
         <div class="val" id="v-est">—</div>
         <div class="un">kg disponíveis</div>
       </div>
+      <div class="card"><div class="lbl">🏡 Sítio</div><div class="val" id="v-sitio">—</div><div class="un">kg</div></div>
+      <div class="card"><div class="lbl">🏠 Casa Prudente</div><div class="val" id="v-casa">—</div><div class="un">kg</div></div>
       <div class="card"><div class="lbl">Entradas hoje</div><div class="val" id="v-en">—</div><div class="un">kg</div></div>
       <div class="card"><div class="lbl">Saídas hoje</div><div class="val" id="v-sa">—</div><div class="un">kg</div></div>
-      <div class="card full"><div class="lbl">Faturamento do mês</div><div class="val" id="v-fat">—</div></div>
+    </div>
+    <div class="page-pad" style="padding-bottom:0">
+      <div class="sec-title" style="margin-bottom:8px">Estoque por produto</div>
+      <div id="estoque-por-produto"></div>
     </div>
     <div class="page-pad">
       <div class="sec-title" style="margin-bottom:10px">Últimas movimentações</div>
@@ -227,6 +232,12 @@
       <div id="en-prev" style="display:none" class="prod-prev"></div>
       <div class="f"><label>Quantidade (unidades)</label><input type="number" id="en-qtd" placeholder="Ex: 20" min="1" step="1" inputmode="numeric" oninput="calcEn()"/></div>
       <div class="f"><label>Total em kg (calculado)</label><input type="text" id="en-kg" class="f-ro" readonly/></div>
+      <div class="f"><label>Estoque de destino</label>
+        <select id="en-local">
+          <option value="Sítio">Sítio</option>
+          <option value="Casa Prudente">Casa Prudente</option>
+        </select>
+      </div>
       <div class="f"><label>Observação (opcional)</label><input type="text" id="en-obs" placeholder="Ex: Produção da semana"/></div>
       <button class="btn-grande btn-verde" onclick="confirmarEntrada()" id="btn-en" style="margin-top:.5rem">
         <span>📥</span><div><div>Confirmar entrada</div><div class="btn-sub">Adiciona ao estoque</div></div>
@@ -248,6 +259,12 @@
       <div id="venda-linhas"></div>
       <div id="venda-total" style="display:none;background:var(--gbg);border-radius:var(--rs);padding:.75rem 1rem;margin-bottom:1rem;font-size:14px;color:var(--gtx)"></div>
 
+      <div class="f"><label>Estoque de saída</label>
+        <select id="vd-local">
+          <option value="Sítio">Sítio</option>
+          <option value="Casa Prudente">Casa Prudente</option>
+        </select>
+      </div>
       <div class="f"><label>Vendedor(a)</label>
         <select id="vd-vendedor">
           <option value="">— selecione —</option>
@@ -344,12 +361,50 @@
     <div class="footer">Dados sincronizados em tempo real</div>
   </div>
 
+
+  <!-- ABA: TRANSFERÊNCIA -->
+  <div class="tab" id="tab-transf">
+    <div class="page-pad">
+      <div class="sec-title" style="margin-bottom:12px">Transferir entre estoques</div>
+      <div class="f"><label>Produto</label>
+        <select id="tr-produto" onchange="onTrProduto()">
+          <option value="">— selecione —</option>
+        </select>
+      </div>
+      <div id="tr-prev" style="display:none" class="prod-prev"></div>
+      <div class="f"><label>Origem</label>
+        <select id="tr-origem" onchange="onTrOrigem()">
+          <option value="Sítio">Sítio</option>
+          <option value="Casa Prudente">Casa Prudente</option>
+        </select>
+      </div>
+      <div class="f"><label>Destino</label>
+        <select id="tr-destino">
+          <option value="Casa Prudente">Casa Prudente</option>
+          <option value="Sítio">Sítio</option>
+        </select>
+      </div>
+      <div class="f"><label>Quantidade (unidades)</label>
+        <input type="number" id="tr-qtd" placeholder="Ex: 10" min="1" step="1" inputmode="numeric" oninput="calcTr()"/>
+      </div>
+      <div class="f"><label>Total em kg (calculado)</label>
+        <input type="text" id="tr-kg" class="f-ro" readonly/>
+      </div>
+      <div id="tr-disp" style="font-size:12px;color:var(--mu);margin:-0.5rem 0 1rem"></div>
+      <button class="btn-grande btn-verde" onclick="confirmarTransferencia()" id="btn-tr" style="margin-top:.5rem">
+        <span>🔄</span><div><div>Confirmar transferência</div><div class="btn-sub">Move kg entre estoques</div></div>
+      </button>
+    </div>
+    <div class="footer">Dados sincronizados em tempo real</div>
+  </div>
+
   <!-- NAV -->
   <nav class="nav">
     <button class="nav-btn on" id="nav-estoque" onclick="irPara('estoque')"><span class="nav-icon">📦</span><span>Estoque</span></button>
     <button class="nav-btn" id="nav-produtos" onclick="irPara('produtos')"><span class="nav-icon">🏷️</span><span>Produtos</span></button>
     <button class="nav-btn" id="nav-entrada" onclick="irPara('entrada')"><span class="nav-icon">📥</span><span>Entrada</span></button>
     <button class="nav-btn" id="nav-venda" onclick="irPara('venda')"><span class="nav-icon">📤</span><span>Venda</span></button>
+    <button class="nav-btn" id="nav-transf" onclick="irPara('transf')"><span class="nav-icon">🔄</span><span>Transfer.</span></button>
     <button class="nav-btn" id="nav-relatorio" onclick="irPara('relatorio')"><span class="nav-icon">📊</span><span>Relatório</span></button>
   </nav>
 </div>
@@ -469,6 +524,7 @@ async function carregarProdutos() {
   if (error) { console.error(error); return; }
   produtos = data || [];
   renderProdutos();
+  preencherSelectTransf();
 }
 
 function renderProdutos() {
@@ -545,6 +601,15 @@ async function excluirProduto(id) {
 }
 
 // ── ENTRADA ───────────────────────────────────────────────────
+function preencherSelectTransf() {
+  const sel = document.getElementById('tr-produto');
+  if (!sel) return;
+  const val = sel.value;
+  sel.innerHTML = '<option value="">— selecione —</option>' +
+    produtos.map(p=>`<option value="${p.id}">${EMOJI[p.tipo]||'📦'} ${p.nome}</option>`).join('');
+  if (val) sel.value = val;
+}
+
 function preencherSelectsEntrada() {
   const sel = document.getElementById('en-produto');
   const val = sel.value;
@@ -596,11 +661,12 @@ async function confirmarEntrada() {
   const {error} = await SB.from('movimentacoes').insert({
     tipo: 'entrada', qty_kg, produto_id: p.id, produto_nome: p.nome,
     unidades: qtd, descricao: obs||null, user_id: uid,
+    local: document.getElementById('en-local').value,
     criado_em: agoraLocal()
   });
   if (error) { alert('Erro: ' + error.message); btn.innerHTML='<span>📥</span><div><div>Confirmar entrada</div><div class="btn-sub">Adiciona ao estoque</div></div>'; btn.disabled=false; return; }
   // Limpar campos
-  ['en-produto','en-qtd','en-obs'].forEach(id => { const el=document.getElementById(id); el.value=''; });
+  ['en-produto','en-qtd','en-obs'].forEach(id => { const el=document.getElementById(id); el.value=''; }); document.getElementById('en-local').value='Sítio';
   document.getElementById('en-kg').value = '';
   document.getElementById('en-prev').style.display = 'none';
   btn.innerHTML = '<span>📥</span><div><div>Confirmar entrada</div><div class="btn-sub">Adiciona ao estoque</div></div>'; btn.disabled = false;
@@ -719,6 +785,7 @@ function atualizarTotalVenda() {
 }
 
 async function confirmarVenda() {
+  const localVenda = document.getElementById('vd-local').value;
   const vendedor = document.getElementById('vd-vendedor').value.trim();
   const conta    = document.getElementById('vd-conta').value.trim();
   const cliente  = document.getElementById('vd-cliente').value.trim();
@@ -758,6 +825,7 @@ async function confirmarVenda() {
         unidades: l.qtd, preco_total,
         vendedor: vendedor||null, conta: conta||null,
         cliente: cliente||null, descricao: obs||null, user_id: uid,
+        local: localVenda,
         criado_em: agoraLocal()
       });
       if (error) throw error;
@@ -769,7 +837,7 @@ async function confirmarVenda() {
   }
 
   // Limpar
-  ['vd-vendedor','vd-conta','vd-cliente','vd-obs'].forEach(id => document.getElementById(id).value = '');
+  ['vd-vendedor','vd-conta','vd-cliente','vd-obs'].forEach(id => document.getElementById(id).value = ''); document.getElementById('vd-local').value='Sítio';
   iniciarLinhasVenda();
   btn.innerHTML = '<span>📤</span><div><div>Confirmar venda</div><div class="btn-sub">Desconta do estoque</div></div>'; btn.disabled = false;
 
@@ -785,18 +853,51 @@ async function carregarDados() {
   if (error) { console.error(error); return; }
   const movs = data || [];
 
-  // Resumo
+  // Resumo total
   const est  = movs.reduce((a,m) => a + (m.tipo==='entrada' ? +m.qty_kg : -m.qty_kg), 0);
   const hoje = NOW_ISO();
-  const mes  = MES_ISO();
   const enHj = movs.filter(m=>m.tipo==='entrada'&&m.criado_em?.startsWith(hoje)).reduce((a,m)=>a+ +m.qty_kg,0);
   const saHj = movs.filter(m=>m.tipo==='saida'  &&m.criado_em?.startsWith(hoje)).reduce((a,m)=>a+ +m.qty_kg,0);
-  const fatM = movs.filter(m=>m.tipo==='saida'  &&m.criado_em?.startsWith(mes) ).reduce((a,m)=>a+(+m.preco_total||0),0);
 
   document.getElementById('v-est').textContent = KG(Math.max(0,est));
   document.getElementById('v-en').textContent  = KG(enHj);
   document.getElementById('v-sa').textContent  = KG(saHj);
-  document.getElementById('v-fat').textContent = R$(fatM);
+
+  // Por local
+  const kgSitio = movs.filter(m=>m.local==='Sítio').reduce((a,m)=>a+(m.tipo==='entrada'? +m.qty_kg : -m.qty_kg),0);
+  const kgCasa  = movs.filter(m=>m.local==='Casa Prudente').reduce((a,m)=>a+(m.tipo==='entrada'? +m.qty_kg : -m.qty_kg),0);
+  document.getElementById('v-sitio').textContent = KG(Math.max(0,kgSitio));
+  document.getElementById('v-casa').textContent  = KG(Math.max(0,kgCasa));
+
+  // Por produto e local
+  const porProd = {};
+  movs.forEach(m => {
+    if (!m.produto_nome) return;
+    const key = m.produto_nome;
+    if (!porProd[key]) porProd[key] = {nome:key, total:0, sitio:0, casa:0};
+    const delta = m.tipo==='entrada' ? +m.qty_kg : -m.qty_kg;
+    porProd[key].total += delta;
+    if (m.local==='Sítio')          porProd[key].sitio += delta;
+    else if (m.local==='Casa Prudente') porProd[key].casa  += delta;
+    else porProd[key].total += 0; // sem local definido já somado no total
+  });
+  const elProd = document.getElementById('estoque-por-produto');
+  const prods = Object.values(porProd).filter(p => p.total > 0.001);
+  if (!prods.length) {
+    elProd.innerHTML = '<div style="font-size:13px;color:var(--mu);padding:.5rem 0">Nenhum produto em estoque.</div>';
+  } else {
+    elProd.innerHTML = prods.map(p => `
+      <div class="item" style="margin-bottom:6px">
+        <div class="item-body">
+          <div class="item-nome">${p.nome}</div>
+          <div class="item-det">
+            🏡 Sítio: ${KG(Math.max(0,p.sitio))} kg &nbsp;·&nbsp; 🏠 Casa Prudente: ${KG(Math.max(0,p.casa))} kg
+          </div>
+        </div>
+        <div class="item-val g">${KG(Math.max(0,p.total))} kg</div>
+      </div>`).join('');
+  }
+
   const bg = est<=0?'#333':est<=5?'#b92c2c':'var(--g)';
   const cp = document.getElementById('card-est');
   cp.style.background = cp.style.borderColor = bg;
@@ -831,7 +932,7 @@ async function carregarDados() {
 }
 
 // ── NAVEGAÇÃO ──────────────────────────────────────────────────
-const subtitulos = {estoque:'Controle de estoque',produtos:'Produtos cadastrados',entrada:'Registrar entrada',venda:'Registrar venda',relatorio:'Relatórios'};
+const subtitulos = {estoque:'Controle de estoque',produtos:'Produtos cadastrados',entrada:'Registrar entrada',venda:'Registrar venda',transf:'Transferência de estoque',relatorio:'Relatórios'};
 function irPara(aba) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('on'));
@@ -840,9 +941,99 @@ function irPara(aba) {
   document.getElementById('hd-sub').textContent = subtitulos[aba]||'';
   if (aba === 'entrada')   preencherSelectsEntrada();
   if (aba === 'venda')     preencherSelectsEntrada();
+  if (aba === 'transf')    { preencherSelectTransf(); }
   if (aba === 'relatorio') { atalho('mes', document.getElementById('btn-atalho-mes')); }
 }
 
+
+
+// ── TRANSFERÊNCIA ─────────────────────────────────────────────
+function onTrProduto() {
+  const id = document.getElementById('tr-produto').value;
+  const prev = document.getElementById('tr-prev');
+  if (!id) { prev.style.display='none'; document.getElementById('tr-kg').value=''; return; }
+  const p = produtos.find(x=>x.id===id);
+  if (!p) return;
+  prev.style.display = 'block';
+  prev.innerHTML = `<strong>${EMOJI[p.tipo]||'📦'} ${p.nome}</strong> · ${p.peso_g}g por unidade`;
+  calcTr();
+  onTrOrigem();
+}
+
+async function onTrOrigem() {
+  const id = document.getElementById('tr-produto').value;
+  if (!id) return;
+  const origem = document.getElementById('tr-origem').value;
+  // Auto-selecionar destino oposto
+  const destino = document.getElementById('tr-destino');
+  destino.value = origem === 'Sítio' ? 'Casa Prudente' : 'Sítio';
+  // Mostrar disponível na origem
+  const {data} = await SB.from('movimentacoes').select('tipo,qty_kg,local').eq('produto_id', id);
+  const kg = (data||[]).filter(m=>m.local===origem).reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0);
+  const disp = Math.max(0, kg);
+  document.getElementById('tr-disp').textContent = `Disponível em ${origem}: ${KG(disp)} kg`;
+  document.getElementById('tr-disp').style.color = disp > 0 ? 'var(--g2)' : 'var(--r)';
+}
+
+function calcTr() {
+  const id  = document.getElementById('tr-produto').value;
+  const qtd = parseInt(document.getElementById('tr-qtd').value);
+  const p   = produtos.find(x=>x.id===id);
+  document.getElementById('tr-kg').value = (p && qtd > 0) ? KG((p.peso_g*qtd)/1000)+' kg' : '';
+}
+
+async function confirmarTransferencia() {
+  const id     = document.getElementById('tr-produto').value;
+  const qtd    = parseInt(document.getElementById('tr-qtd').value);
+  const origem = document.getElementById('tr-origem').value;
+  const destino= document.getElementById('tr-destino').value;
+  if (!id)             { alert('Selecione um produto.'); return; }
+  if (origem===destino){ alert('Origem e destino não podem ser iguais.'); return; }
+  if (!qtd||qtd<=0)   { alert('Informe a quantidade.'); return; }
+  const p = produtos.find(x=>x.id===id);
+  if (!p) return;
+  const kg = (p.peso_g * qtd) / 1000;
+
+  // Verificar disponível na origem
+  const {data} = await SB.from('movimentacoes').select('tipo,qty_kg,local').eq('produto_id', id);
+  const dispOrigem = Math.max(0, (data||[]).filter(m=>m.local===origem).reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0));
+  if (kg > dispOrigem + 0.001) {
+    alert(`Estoque insuficiente em ${origem}!\nDisponível: ${KG(dispOrigem)} kg\nSolicitado: ${KG(kg)} kg`);
+    return;
+  }
+
+  const btn = document.getElementById('btn-tr');
+  btn.innerHTML = '<span class="spinner"></span><div><div>Salvando...</div></div>'; btn.disabled = true;
+  const uid = (await SB.auth.getUser()).data?.user?.id || null;
+  const ts  = agoraLocal();
+
+  // Saída da origem
+  const r1 = await SB.from('movimentacoes').insert({
+    tipo:'saida', qty_kg:kg, produto_id:p.id, produto_nome:p.nome,
+    unidades:qtd, local:origem, descricao:`Transferência → ${destino}`,
+    user_id:uid, criado_em:ts
+  });
+  // Entrada no destino
+  const r2 = await SB.from('movimentacoes').insert({
+    tipo:'entrada', qty_kg:kg, produto_id:p.id, produto_nome:p.nome,
+    unidades:qtd, local:destino, descricao:`Transferência ← ${origem}`,
+    user_id:uid, criado_em:ts
+  });
+
+  btn.innerHTML = '<span>🔄</span><div><div>Confirmar transferência</div><div class="btn-sub">Move kg entre estoques</div></div>'; btn.disabled=false;
+
+  if (r1.error||r2.error) { alert('Erro: '+(r1.error||r2.error).message); return; }
+
+  document.getElementById('tr-produto').value = '';
+  document.getElementById('tr-qtd').value = '';
+  document.getElementById('tr-kg').value = '';
+  document.getElementById('tr-prev').style.display = 'none';
+  document.getElementById('tr-disp').textContent = '';
+
+  await carregarDados();
+  irPara('estoque');
+  toast(`✓ ${KG(kg)} kg transferidos: ${origem} → ${destino}`);
+}
 
 // ── RELATÓRIO ─────────────────────────────────────────────────
 let _dadosCache = [];
