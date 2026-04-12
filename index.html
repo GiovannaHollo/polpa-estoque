@@ -329,10 +329,10 @@
 
       <!-- KPIs -->
       <div class="kpi-grid" id="r-kpis" style="display:none">
-        <div class="kpi dest"><div class="kl">Faturamento</div><div class="kv" id="r-fat">—</div><div class="ku">no período</div></div>
-        <div class="kpi"><div class="kl">Custo (entradas)</div><div class="kv" id="r-custo">—</div><div class="ku">no período</div></div>
+        <div class="kpi dest"><div class="kl">Faturamento</div><div class="kv" id="r-fat">—</div><div class="ku">vendas pagas no período</div></div>
+        <div class="kpi" style="border-left:3px solid var(--r)"><div class="kl">A receber</div><div class="kv" id="r-areceber" style="color:var(--r)">—</div><div class="ku">fiados pendentes</div></div>
         <div class="kpi"><div class="kl">Kg vendidos</div><div class="kv" id="r-kgv">—</div><div class="ku">kg saídos</div></div>
-        <div class="kpi"><div class="kl">Kg comprados</div><div class="kv" id="r-kgc">—</div><div class="ku">kg entrados</div></div>
+        <div class="kpi"><div class="kl">Kg produzidos</div><div class="kv" id="r-kgc">—</div><div class="ku">kg entrados</div></div>
       </div>
 
       <!-- Exportar -->
@@ -361,7 +361,7 @@
         <div class="bloco-titulo">Movimentações do período</div>
         <div class="tabela-wrap">
           <table>
-            <thead><tr><th>Data</th><th>Tipo</th><th>Produto</th><th>Vendedor</th><th>Conta</th><th style="text-align:right">Kg</th><th style="text-align:right">Valor</th></tr></thead>
+            <thead><tr><th>Data</th><th>Tipo</th><th>Produto</th><th>Vendedor</th><th>Conta</th><th>Estoque</th><th>Usuário</th><th style="text-align:right">Kg</th><th style="text-align:right">Valor</th></tr></thead>
             <tbody id="r-tbody"></tbody>
           </table>
         </div>
@@ -1297,6 +1297,7 @@ async function confirmarPagamento() {
 
 // ── RELATÓRIO ─────────────────────────────────────────────────
 let _dadosCache = [];
+let _usuariosMap = {};
 
 function atalho(tipo, btn) {
   document.querySelectorAll('.atalho').forEach(b => b.classList.remove('on'));
@@ -1328,6 +1329,23 @@ async function gerarRelatorio() {
   btn.innerHTML = '<span>📊</span><div><div>Gerar relatório</div><div class="btn-sub">Atualizar dados</div></div>'; btn.disabled = false;
   if (error) { toast('Erro: '+error.message); return; }
   _dadosCache = data || [];
+
+  // Buscar emails dos usuários únicos nas movimentações
+  const uidsUnicos = [...new Set(_dadosCache.filter(m=>m.user_id).map(m=>m.user_id))];
+  _usuariosMap = {};
+  if (uidsUnicos.length) {
+    const {data: users} = await SB.from('movimentacoes')
+      .select('user_id, vendedor')
+      .in('user_id', uidsUnicos)
+      .not('vendedor', 'is', null)
+      .limit(100);
+    // Fallback: mapear user_id para vendedor se disponível
+    (users||[]).forEach(u => { if (!_usuariosMap[u.user_id]) _usuariosMap[u.user_id] = u.vendedor; });
+  }
+  // Buscar email do usuário atual
+  const { data: { user } } = await SB.auth.getUser();
+  if (user) _usuariosMap[user.id] = user.email?.split('@')[0] || 'eu';
+
   renderRelatorio(_dadosCache);
 }
 
@@ -1337,14 +1355,16 @@ function renderRelatorio(data) {
   const saidas   = data.filter(m => m.tipo==='saida'   && !m.is_transferencia);
 
   // KPIs
-  const fat   = saidas.reduce((a,m)=>a+(+m.preco_total||0),0);
-  const custo = entradas.reduce((a,m)=>a+(+m.preco_total||0),0);
+  // Faturamento: só vendas pagas (não fiado pendente)
+  const fat      = saidas.filter(m => !m.fiado || m.fiado_pago).reduce((a,m)=>a+(+m.preco_total||0),0);
+  // A receber: fiados ainda não pagos
+  const aReceber = saidas.filter(m => m.fiado && !m.fiado_pago).reduce((a,m)=>a+(+m.preco_total||0),0);
   const kgV   = saidas.reduce((a,m)=>a+ +m.qty_kg,0);
   const kgC   = entradas.reduce((a,m)=>a+ +m.qty_kg,0);
-  document.getElementById('r-fat').textContent   = R$(fat);
-  document.getElementById('r-custo').textContent = R$(custo);
-  document.getElementById('r-kgv').textContent   = KG(kgV)+' kg';
-  document.getElementById('r-kgc').textContent   = KG(kgC)+' kg';
+  document.getElementById('r-fat').textContent      = R$(fat);
+  document.getElementById('r-areceber').textContent = R$(aReceber);
+  document.getElementById('r-kgv').textContent      = KG(kgV)+' kg';
+  document.getElementById('r-kgc').textContent      = KG(kgC)+' kg';
   show('r-kpis'); show('r-export');
 
   // Vendas por produto
@@ -1381,17 +1401,30 @@ function renderRelatorio(data) {
   const tbody = document.getElementById('r-tbody');
   const fmtDt = s => new Date(s).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="sem-dados">Nenhuma movimentação no período.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="sem-dados">Nenhuma movimentação no período.</td></tr>';
   } else {
-    tbody.innerHTML = data.map(m=>`<tr>
-      <td class="td-mu">${fmtDt(m.criado_em)}</td>
-      <td>${m.tipo==='entrada'?'📥 Entrada':'📤 Venda'}</td>
-      <td>${m.produto_nome||m.descricao||'—'}</td>
-      <td>${m.vendedor||'—'}</td>
-      <td>${m.conta||'—'}</td>
-      <td class="td-r">${m.tipo==='entrada'?'+':'−'}${KG(m.qty_kg)}</td>
-      <td class="td-r">${m.preco_total?R$(m.preco_total):'—'}${m.fiado&&!m.fiado_pago?'<br><span style="color:var(--r);font-size:10px;font-weight:600">FIADO</span>':m.fiado&&m.fiado_pago?'<br><span style="color:var(--g2);font-size:10px;font-weight:600">✅ PAGO</span>':''}</td>
-    </tr>`).join('');
+    tbody.innerHTML = data.map(m=>{
+      const nomeUsuario = (m.user_id && _usuariosMap[m.user_id]) ? _usuariosMap[m.user_id] : '—';
+      const localLabel  = m.local || '—';
+      const tipoLabel   = m.is_transferencia ? '🔄 Transf.' : m.tipo==='entrada' ? '📥 Entrada' : '📤 Venda';
+      const valorLabel  = m.preco_total ? R$(m.preco_total) : '—';
+      const fiadoTag    = m.fiado && !m.fiado_pago
+        ? '<br><span style="color:var(--r);font-size:10px;font-weight:600">FIADO</span>'
+        : m.fiado && m.fiado_pago
+        ? '<br><span style="color:var(--g2);font-size:10px;font-weight:600">✅ PAGO</span>'
+        : '';
+      return `<tr>
+        <td class="td-mu">${fmtDt(m.criado_em)}</td>
+        <td>${tipoLabel}</td>
+        <td>${m.produto_nome||m.descricao||'—'}</td>
+        <td>${m.vendedor||'—'}</td>
+        <td>${m.conta||'—'}</td>
+        <td>${localLabel}</td>
+        <td class="td-mu">${nomeUsuario}</td>
+        <td class="td-r">${m.tipo==='entrada'?'+':'−'}${KG(m.qty_kg)}</td>
+        <td class="td-r">${valorLabel}${fiadoTag}</td>
+      </tr>`;
+    }).join('');
   }
   show('r-bloco-tab');
 }
@@ -1410,16 +1443,20 @@ function renderBarras(containerId, itens, campo, cor, fmt) {
 
 function exportarCSV() {
   if (!_dadosCache.length) return;
-  const cab = ['Data','Tipo','Produto','Vendedor','Cliente','Conta','Unidades','Kg','Valor'];
+  const cab = ['Data','Tipo','Produto','Vendedor','Cliente','Conta','Estoque','Usuário','Unidades','Kg','Valor','Fiado','Pago'];
   const fmtDt = s => new Date(s).toLocaleString('pt-BR');
   const linhas = _dadosCache.map(m=>[
     fmtDt(m.criado_em),
-    m.tipo==='entrada'?'Entrada':'Venda',
+    m.is_transferencia ? 'Transferência' : m.tipo==='entrada' ? 'Entrada' : 'Venda',
     m.produto_nome||m.descricao||'',
     m.vendedor||'', m.cliente||'', m.conta||'',
+    m.local||'',
+    (m.user_id && _usuariosMap[m.user_id]) ? _usuariosMap[m.user_id] : '',
     m.unidades||'',
     (+m.qty_kg).toFixed(3).replace('.',','),
-    m.preco_total?(+m.preco_total).toFixed(2).replace('.',','):''
+    m.preco_total?(+m.preco_total).toFixed(2).replace('.',','):'',
+    m.fiado ? 'Sim' : 'Não',
+    m.fiado ? (m.fiado_pago ? 'Sim' : 'Não') : ''
   ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(';'));
   const csv = [cab.join(';'),...linhas].join('\n');
   const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
