@@ -1196,9 +1196,7 @@ async function confirmarTransferencia() {
 
   btn.innerHTML = '<span>🔄</span><div><div>Confirmar transferência</div><div class="btn-sub">Move kg entre estoques</div></div>'; btn.disabled=false;
 
-  if (errTransf) { alert('Erro na transferência: ' + errTransf.message + '
-
-Nenhum dado foi alterado.'); return; }
+  if (errTransf) { alert('Erro na transferência: ' + errTransf.message + '\n\nNenhum dado foi alterado.'); return; }
 
   document.getElementById('tr-produto').value = '';
   document.getElementById('tr-qtd').value = '';
