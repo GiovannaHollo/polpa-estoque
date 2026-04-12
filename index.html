@@ -755,7 +755,7 @@ function iniciarLinhasVenda() {
 
 function adicionarLinhaProduto() {
   const id = 'ln' + Date.now();
-  linhasVenda.push({id});
+  linhasVenda.push({id, preco: null});
   renderLinhasVenda();
 }
 
@@ -785,8 +785,8 @@ function renderLinhasVenda() {
           <input type="number" class="vd-qtd-in" data-lid="${l.id}" value="${l.qtd||''}" placeholder="Ex: 5" min="1" step="1" inputmode="numeric" oninput="onVdQtd('${l.id}')" />
         </div>
         <div class="f" style="margin-bottom:0">
-          <label style="font-size:11px">Preço/un. R$</label>
-          <input type="number" class="vd-preco-in" data-lid="${l.id}" value="${l.preco||''}" placeholder="Ex: 15,00" min="0" step="0.01" inputmode="decimal" oninput="onVdPreco('${l.id}')" />
+          <label style="font-size:11px">Preço/un. R$ <span style="color:var(--r)">*</span></label>
+          <input type="number" class="vd-preco-in" data-lid="${l.id}" value="${l.preco!==undefined&&l.preco!==null?l.preco:''}" placeholder="Obrigatório" min="0" step="0.01" inputmode="decimal" oninput="onVdPreco('${l.id}')" style="${l.preco===undefined||l.preco===null?'border-color:var(--r)':''}" />
         </div>
       </div>
       ${l.prodId ? `<div class="prod-linha-calc" id="disp-${l.id}">
@@ -809,7 +809,7 @@ async function carregarDisponivelLinha(lid, prodId) {
   // Calcula disponível apenas no local selecionado (se local definido)
   const movs = data || [];
   const dispLocal = movs
-    .filter(m => !localSel || m.local === localSel)
+    .filter(m => (!localSel || m.local === localSel))
     .reduce((a,m) => a + (m.tipo==='entrada' ? +m.qty_kg : -m.qty_kg), 0);
   const disp = Math.max(0, dispLocal);
   const l = linhasVenda.find(x => x.id === lid);
@@ -831,7 +831,7 @@ function onVdProduto(lid) {
   l.prodId = sel.value;
   const p = produtos.find(x => x.id === l.prodId);
   if (p && p.preco_sug) {
-    l.preco = p.preco_sug;
+    l.preco = p.preco_sug; // preenche automaticamente com o preço sugerido
   }
   renderLinhasVenda();
   if (l.prodId) carregarDisponivelLinha(lid, l.prodId);
@@ -841,14 +841,34 @@ function onVdQtd(lid) {
   const inp = document.querySelector(`.vd-qtd-in[data-lid="${lid}"]`);
   const l = linhasVenda.find(x => x.id === lid); if (!l) return;
   l.qtd = parseInt(inp.value) || 0;
-  renderLinhasVenda();
+  // Atualiza só o cálculo sem re-renderizar (evita fechar teclado no celular)
+  atualizarCalcLinha(lid);
+  atualizarTotalVenda();
+  if (l.prodId) carregarDisponivelLinha(lid, l.prodId);
 }
 
 function onVdPreco(lid) {
   const inp = document.querySelector(`.vd-preco-in[data-lid="${lid}"]`);
   const l = linhasVenda.find(x => x.id === lid); if (!l) return;
-  l.preco = parseFloat(inp.value.replace(',','.')) || 0;
+  const val = inp.value.replace(',','.');
+  // Mantém null se vazio, 0 se explicitamente digitado como 0
+  l.preco = val === '' ? null : parseFloat(val);
+  // Atualiza borda do campo para indicar se está preenchido
+  inp.style.borderColor = (l.preco === null) ? 'var(--r)' : '';
+  atualizarCalcLinha(lid);
   atualizarTotalVenda();
+}
+
+function atualizarCalcLinha(lid) {
+  const l = linhasVenda.find(x => x.id === lid); if (!l || !l.prodId) return;
+  const p = produtos.find(x => x.id === l.prodId); if (!p) return;
+  const el = document.getElementById('disp-'+lid);
+  if (!el) return;
+  const kgLinha = l.qtd ? KG((p.peso_g * l.qtd) / 1000) + ' kg nesta venda · ' : '';
+  // Atualiza apenas o texto do calc sem mexer no span do disponível
+  const dispEl = document.getElementById('disp-txt-'+lid);
+  const dispTxt = dispEl ? dispEl.outerHTML : '';
+  el.innerHTML = kgLinha + dispTxt;
 }
 
 function atualizarTotalVenda() {
@@ -881,36 +901,63 @@ async function confirmarVenda() {
   if (!isFiadoVenda && !conta) { alert('Informe a conta que recebeu.'); return; }
   if (isFiadoVenda && !document.getElementById('vd-fiado-nome').value.trim()) { alert('Informe o nome do fiado.'); return; }
 
-  // Validar estoque disponível por produto NO LOCAL SELECIONADO
+  // Validar preço obrigatório em todas as linhas
   for (const l of linhasValidas) {
     const p = produtos.find(x => x.id === l.prodId);
-    if (!p) continue;
-    const kg = (p.peso_g * l.qtd) / 1000;
-    // Busca estoque em tempo real no local selecionado para garantir consistência
-    const {data: movsCheck} = await SB.from('movimentacoes')
-      .select('tipo, qty_kg, local')
-      .eq('produto_id', p.id);
-    const dispLocal = Math.max(0, (movsCheck||[])
-      .filter(m => m.local === localVenda)
-      .reduce((a,m) => a + (m.tipo==='entrada' ? +m.qty_kg : -m.qty_kg), 0));
-    if (kg > dispLocal + 0.001) {
-      alert(`Estoque insuficiente em ${localVenda} para "${p.nome}"!\n\nDisponível: ${KG(dispLocal)} kg\nSolicitado: ${KG(kg)} kg\n\nAjuste a quantidade ou o estoque de saída.`);
+    const nome = p ? p.nome : 'produto';
+    if (l.preco === undefined || l.preco === null || l.preco === '' || isNaN(l.preco)) {
+      alert(`Informe o preço por unidade para "${nome}".
+
+Se for doação ou uso próprio, coloque 0.`);
       return;
     }
   }
 
+  // Validar estoque disponível por produto NO LOCAL SELECIONADO
+  // Pré-busca todos os estoques de uma vez e acumula reservas desta venda
+  const reservas = {}; // prodId -> kg já reservado nesta venda
+  for (const l of linhasValidas) {
+    const p = produtos.find(x => x.id === l.prodId);
+    if (!p) continue;
+    const kgSolicitado = (p.peso_g * l.qtd) / 1000;
+    if (!reservas[p.id]) {
+      const {data: movsCheck} = await SB.from('movimentacoes')
+        .select('tipo, qty_kg, local')
+        .eq('produto_id', p.id);
+      const dispLocal = Math.max(0, (movsCheck||[])
+        .filter(m => m.local === localVenda)
+        .reduce((a,m) => a + (m.tipo==='entrada' ? +m.qty_kg : -m.qty_kg), 0));
+      reservas[p.id] = { disp: dispLocal, reservado: 0 };
+    }
+    const { disp, reservado } = reservas[p.id];
+    const dispRestante = disp - reservado;
+    if (kgSolicitado > dispRestante + 0.001) {
+      alert(`Estoque insuficiente em ${localVenda} para "${p.nome}"!
+
+Disponível: ${KG(dispRestante)} kg
+Solicitado: ${KG(kgSolicitado)} kg
+
+Ajuste a quantidade ou o estoque de saída.`);
+      return;
+    }
+    reservas[p.id].reservado += kgSolicitado;
+  }
+
   const btn = document.getElementById('btn-vd');
   btn.innerHTML = '<span class="spinner"></span>Salvando...'; btn.disabled = true;
+
+  // Buscar uid uma única vez fora do loop
+  const uid = (await SB.auth.getUser()).data?.user?.id || null;
+  const isFiado = document.getElementById('vd-fiado').checked;
+  const fiadoNome = document.getElementById('vd-fiado-nome').value.trim();
+  const tsVenda = agoraLocal();
 
   try {
     for (const l of linhasValidas) {
       const p = produtos.find(x => x.id === l.prodId);
       if (!p) continue;
       const qty_kg = (p.peso_g * l.qtd) / 1000;
-      const preco_total = l.preco > 0 ? l.preco * l.qtd : null;
-      const uid = (await SB.auth.getUser()).data?.user?.id || null;
-      const isFiado = document.getElementById('vd-fiado').checked;
-      const fiadoNome = document.getElementById('vd-fiado-nome').value.trim();
+      const preco_total = (l.preco || 0) * l.qtd; // sempre numérico, nunca null
       const {error} = await SB.from('movimentacoes').insert({
         tipo: 'saida', qty_kg,
         produto_id: p.id, produto_nome: p.nome,
@@ -921,7 +968,7 @@ async function confirmarVenda() {
         fiado: isFiado,
         fiado_nome: isFiado ? fiadoNome||null : null,
         fiado_pago: isFiado ? false : null,
-        criado_em: agoraLocal()
+        criado_em: tsVenda
       });
       if (error) throw error;
     }
@@ -944,24 +991,35 @@ async function confirmarVenda() {
 
 // ── DADOS / RESUMO ────────────────────────────────────────────
 async function carregarDados() {
-  const {data, error} = await SB.from('movimentacoes').select('*').order('criado_em',{ascending:false});
-  if (error) { console.error(error); return; }
-  const movs = data || [];
+  // Query separada para calcular estoque total (sem limite — necessário para saldo correto)
+  const {data: todosMovs, error: e1} = await SB.from('movimentacoes')
+    .select('tipo, qty_kg, local, is_transferencia, criado_em')
+    .order('criado_em', {ascending: false});
+  if (e1) { console.error(e1); return; }
+
+  // Histórico recente para exibição (últimas 50 movimentações)
+  const {data: movRecentes, error: e2} = await SB.from('movimentacoes')
+    .select('*')
+    .order('criado_em', {ascending: false})
+    .limit(50);
+  if (e2) { console.error(e2); return; }
+
+  const movs = todosMovs || [];
 
   // Resumo total — excluindo transferências dos cards de entradas/saídas do dia
-  const est  = movs.reduce((a,m) => a + (m.tipo==='entrada' ? +m.qty_kg : -m.qty_kg), 0);
   const hoje = NOW_ISO();
-  // Entradas e saídas reais do dia (sem transferências)
   const enHj = movs.filter(m=>m.tipo==='entrada'&&!m.is_transferencia&&m.criado_em?.startsWith(hoje)).reduce((a,m)=>a+ +m.qty_kg,0);
   const saHj = movs.filter(m=>m.tipo==='saida'  &&!m.is_transferencia&&m.criado_em?.startsWith(hoje)).reduce((a,m)=>a+ +m.qty_kg,0);
+
+  // Estoque total = soma dos locais conhecidos + sem local (legado)
+  const kgSitio = movs.filter(m=>m.local==='Sítio').reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0);
+  const kgCasa  = movs.filter(m=>m.local==='PP').reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0);
+  const kgSemLocal = movs.filter(m=>!m.local).reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0);
+  const est = kgSitio + kgCasa + kgSemLocal;
 
   document.getElementById('v-est').textContent = KG(Math.max(0,est));
   document.getElementById('v-en').textContent  = KG(enHj);
   document.getElementById('v-sa').textContent  = KG(saHj);
-
-  // Por local (transferências contam para mover kg entre locais — correto)
-  const kgSitio = movs.filter(m=>m.local==='Sítio').reduce((a,m)=>a+(m.tipo==='entrada'? +m.qty_kg : -m.qty_kg),0);
-  const kgCasa  = movs.filter(m=>m.local==='PP').reduce((a,m)=>a+(m.tipo==='entrada'? +m.qty_kg : -m.qty_kg),0);
   document.getElementById('v-sitio').textContent = KG(Math.max(0,kgSitio));
   document.getElementById('v-casa').textContent  = KG(Math.max(0,kgCasa));
 
@@ -998,9 +1056,9 @@ async function carregarDados() {
   const cp = document.getElementById('card-est');
   cp.style.background = cp.style.borderColor = bg;
 
-  // Lista de movimentações (últimas 30)
+  // Lista de movimentações (últimas 50, já limitadas na query)
   const el = document.getElementById('lista-movs');
-  const recentes = movs.slice(0, 30);
+  const recentes = movRecentes || [];
   if (!recentes.length) {
     el.innerHTML = '<div class="vazio"><div class="vazio-i">📭</div>Nenhuma movimentação ainda.</div>';
     return;
@@ -1122,22 +1180,25 @@ async function confirmarTransferencia() {
   const uid = (await SB.auth.getUser()).data?.user?.id || null;
   const ts  = agoraLocal();
 
-  // Saída da origem
-  const r1 = await SB.from('movimentacoes').insert({
-    tipo:'saida', qty_kg:kg, produto_id:p.id, produto_nome:p.nome,
-    unidades:qtd, local:origem, descricao:`Transferência → ${destino}`,
-    user_id:uid, criado_em:ts, is_transferencia:true
-  });
-  // Entrada no destino
-  const r2 = await SB.from('movimentacoes').insert({
-    tipo:'entrada', qty_kg:kg, produto_id:p.id, produto_nome:p.nome,
-    unidades:qtd, local:destino, descricao:`Transferência ← ${origem}`,
-    user_id:uid, criado_em:ts, is_transferencia:true
-  });
+  // Inserir os dois registros juntos (array) — se um falhar, nenhum é salvo
+  const { error: errTransf } = await SB.from('movimentacoes').insert([
+    {
+      tipo:'saida', qty_kg:kg, produto_id:p.id, produto_nome:p.nome,
+      unidades:qtd, local:origem, descricao:`Transferência → ${destino}`,
+      user_id:uid, criado_em:ts, is_transferencia:true
+    },
+    {
+      tipo:'entrada', qty_kg:kg, produto_id:p.id, produto_nome:p.nome,
+      unidades:qtd, local:destino, descricao:`Transferência ← ${origem}`,
+      user_id:uid, criado_em:ts, is_transferencia:true
+    }
+  ]);
 
   btn.innerHTML = '<span>🔄</span><div><div>Confirmar transferência</div><div class="btn-sub">Move kg entre estoques</div></div>'; btn.disabled=false;
 
-  if (r1.error||r2.error) { alert('Erro: '+(r1.error||r2.error).message); return; }
+  if (errTransf) { alert('Erro na transferência: ' + errTransf.message + '
+
+Nenhum dado foi alterado.'); return; }
 
   document.getElementById('tr-produto').value = '';
   document.getElementById('tr-qtd').value = '';
@@ -1182,8 +1243,11 @@ async function carregarFiado() {
   const movs = data || [];
   // Badge total
   const total = movs.reduce((a,m) => a + (+m.preco_total||0), 0);
+  const semPreco = movs.filter(m => !m.preco_total || +m.preco_total === 0).length;
   const badge = document.getElementById('fiado-total-badge');
-  badge.textContent = movs.length ? `${movs.length} pendente${movs.length>1?'s':''} · ${R$(total)}` : '';
+  badge.textContent = movs.length
+    ? `${movs.length} pendente${movs.length>1?'s':''} · ${R$(total)}${semPreco ? ' ('+semPreco+' sem preço)' : ''}`
+    : '';
   if (!movs.length) {
     el.innerHTML = '<div class="vazio"><div class="vazio-i">✅</div>Nenhum fiado pendente!</div>';
     return;
