@@ -786,7 +786,7 @@ function renderLinhasVenda() {
         </div>
         <div class="f" style="margin-bottom:0">
           <label style="font-size:11px">Preço/un. R$ <span style="color:var(--r)">*</span></label>
-          <input type="number" class="vd-preco-in" data-lid="${l.id}" value="${l.preco!==undefined&&l.preco!==null?l.preco:''}" placeholder="Obrigatório" min="0" step="0.01" inputmode="decimal" oninput="onVdPreco('${l.id}')" style="${l.preco===undefined||l.preco===null?'border-color:var(--r)':''}" />
+          <input type="number" class="vd-preco-in" data-lid="${l.id}" value="${l.preco !== null && l.preco !== undefined ? l.preco : ''}" placeholder="Obrigatório" min="0" step="0.01" inputmode="decimal" oninput="onVdPreco('${l.id}')" />
         </div>
       </div>
       ${l.prodId ? `<div class="prod-linha-calc" id="disp-${l.id}">
