@@ -28,13 +28,13 @@
     .sb-btn.on{background:var(--gbg);color:var(--gtx);font-weight:600}
     .tab{display:none}.tab.on{display:block}
     .page-pad{padding:1.25rem 1rem 0}
-    .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:1rem}
+    .cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:1rem}
     .card{background:var(--sf);border-radius:var(--ra);padding:1rem;border:1px solid var(--bd)}
-    .card.full{grid-column:span 2;background:var(--g);border-color:var(--g)}
+    .card.full{grid-column:span 3;background:var(--g);border-color:var(--g)}
     .card .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);font-weight:500;margin-bottom:6px}
     .card.full .lbl{color:rgba(255,255,255,.65)}
     .card .val{font-size:26px;font-weight:600;color:var(--tx);line-height:1}
-    .card.full .val{color:#fff;font-size:34px}
+    .card.full .val{color:#fff;font-size:30px}
     .card .un{font-size:12px;color:var(--mu);margin-top:2px}
     .card.full .un{color:rgba(255,255,255,.6)}
     .sec-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
@@ -139,7 +139,7 @@
       <div class="card full" id="card-est"><div class="lbl">Estoque total</div><div class="val" id="v-est">—</div><div class="un">kg disponíveis</div></div>
       <div class="card"><div class="lbl">🏡 Sítio</div><div class="val" id="v-sitio">—</div><div class="un">kg</div></div>
       <div class="card"><div class="lbl">🏠 PP</div><div class="val" id="v-casa">—</div><div class="un">kg</div></div>
-      <div class="card full"><div class="lbl">👵 PP - Vó</div><div class="val" id="v-vo">—</div><div class="un">kg</div></div>
+      <div class="card"><div class="lbl">👵 PP - Vó</div><div class="val" id="v-vo">—</div><div class="un">kg</div></div>
       <div class="card"><div class="lbl">Entradas hoje</div><div class="val" id="v-en">—</div><div class="un">kg</div></div>
       <div class="card"><div class="lbl">Saídas hoje</div><div class="val" id="v-sa">—</div><div class="un">kg</div></div>
     </div>
@@ -188,7 +188,7 @@
       <div id="venda-linhas"></div>
       <div id="venda-total" style="display:none;background:var(--gbg);border-radius:var(--rs);padding:.75rem 1rem;margin-bottom:1rem;font-size:14px;color:var(--gtx)"></div>
       <div class="f"><label>Estoque de saída</label>
-        <select id="vd-local" onchange="recarregarTodosDisponiveis()"><option value="Sítio">Sítio</option><option value="PP">PP</option></select>
+        <select id="vd-local" onchange="recarregarTodosDisponiveis()"><option value="Sítio">Sítio</option><option value="PP">PP</option><option value="PP - Vó">PP - Vó</option></select>
       </div>
       <div class="f"><label>Vendedor(a)</label>
         <select id="vd-vendedor"><option value="">— selecione —</option><option value="Adão">Adão</option><option value="Silvana">Silvana</option><option value="Vitor">Vitor</option></select>
@@ -278,7 +278,7 @@
       <div class="sec-title" style="margin-bottom:12px">Transferir entre estoques</div>
       <div class="f"><label>Produto</label><select id="tr-produto" onchange="onTrProduto()"><option value="">— selecione —</option></select></div>
       <div id="tr-prev" style="display:none" class="prod-prev"></div>
-      <div class="f"><label>Origem</label><select id="tr-origem" onchange="onTrOrigem()"><option value="Sítio">Sítio</option><option value="PP">PP</option></select></div>
+      <div class="f"><label>Origem</label><select id="tr-origem" onchange="onTrOrigem()"><option value="Sítio">Sítio</option><option value="PP">PP</option><option value="PP - Vó">PP - Vó</option></select></div>
       <div class="f"><label>Destino</label><select id="tr-destino"><option value="PP">PP</option><option value="Sítio">Sítio</option><option value="PP - Vó">PP - Vó</option></select></div>
       <div class="f"><label>Quantidade (unidades)</label><input type="number" id="tr-qtd" placeholder="Ex: 10" min="1" step="1" inputmode="numeric" oninput="calcTr()"/></div>
       <div class="f"><label>Total em kg (calculado)</label><input type="text" id="tr-kg" class="f-ro" readonly/></div>
