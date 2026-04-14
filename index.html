@@ -11,7 +11,9 @@
   <style>
     :root{--g:#1e5c1e;--g2:#2d7a2d;--gbg:#e8f5e8;--gtx:#154415;--r:#b92c2c;--rbg:#fdeaea;--rtx:#7a1a1a;--b:#1a4fa0;--bbg:#e8f0fc;--bg:#f7f5f0;--sf:#fff;--bd:#e2ddd5;--tx:#1a1a18;--mu:#7a776e;--ra:14px;--rs:8px}
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;padding-bottom:60px}
+    .bnav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:none;background:transparent;cursor:pointer;color:var(--mu);font-family:'DM Sans',sans-serif;font-weight:500;padding:4px 0 6px}
+    .bnav-btn.on{color:var(--g)}
     .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem;background:var(--bg)}
     .login-box{background:var(--sf);border-radius:var(--ra);border:1px solid var(--bd);padding:2rem 1.5rem;width:100%;max-width:360px}
     .login-logo{font-size:36px;text-align:center;margin-bottom:.5rem}
@@ -137,6 +139,7 @@
       <div class="card full" id="card-est"><div class="lbl">Estoque total</div><div class="val" id="v-est">—</div><div class="un">kg disponíveis</div></div>
       <div class="card"><div class="lbl">🏡 Sítio</div><div class="val" id="v-sitio">—</div><div class="un">kg</div></div>
       <div class="card"><div class="lbl">🏠 PP</div><div class="val" id="v-casa">—</div><div class="un">kg</div></div>
+      <div class="card full"><div class="lbl">👵 PP - Vó</div><div class="val" id="v-vo">—</div><div class="un">kg</div></div>
       <div class="card"><div class="lbl">Entradas hoje</div><div class="val" id="v-en">—</div><div class="un">kg</div></div>
       <div class="card"><div class="lbl">Saídas hoje</div><div class="val" id="v-sa">—</div><div class="un">kg</div></div>
     </div>
@@ -166,7 +169,7 @@
       <div id="en-prev" style="display:none" class="prod-prev"></div>
       <div class="f"><label>Quantidade (unidades)</label><input type="number" id="en-qtd" placeholder="Ex: 20" min="1" step="1" inputmode="numeric" oninput="calcEn()"/></div>
       <div class="f"><label>Total em kg (calculado)</label><input type="text" id="en-kg" class="f-ro" readonly/></div>
-      <div class="f"><label>Estoque de destino</label><select id="en-local"><option value="Sítio">Sítio</option><option value="PP">PP</option></select></div>
+      <div class="f"><label>Estoque de destino</label><select id="en-local"><option value="Sítio">Sítio</option><option value="PP">PP</option><option value="PP - Vó">PP - Vó</option><option value="PP - Vó">PP - Vó</option><option value="PP - Vó">PP - Vó</option></select></div>
       <div class="f"><label>Observação (opcional)</label><input type="text" id="en-obs" placeholder="Ex: Produção da semana"/></div>
       <button class="btn-grande btn-verde" onclick="confirmarEntrada()" id="btn-en" style="margin-top:.5rem">
         <span>📥</span><div><div>Confirmar entrada</div><div class="btn-sub">Adiciona ao estoque</div></div>
@@ -276,7 +279,7 @@
       <div class="f"><label>Produto</label><select id="tr-produto" onchange="onTrProduto()"><option value="">— selecione —</option></select></div>
       <div id="tr-prev" style="display:none" class="prod-prev"></div>
       <div class="f"><label>Origem</label><select id="tr-origem" onchange="onTrOrigem()"><option value="Sítio">Sítio</option><option value="PP">PP</option></select></div>
-      <div class="f"><label>Destino</label><select id="tr-destino"><option value="PP">PP</option><option value="Sítio">Sítio</option></select></div>
+      <div class="f"><label>Destino</label><select id="tr-destino"><option value="PP">PP</option><option value="Sítio">Sítio</option><option value="PP - Vó">PP - Vó</option></select></div>
       <div class="f"><label>Quantidade (unidades)</label><input type="number" id="tr-qtd" placeholder="Ex: 10" min="1" step="1" inputmode="numeric" oninput="calcTr()"/></div>
       <div class="f"><label>Total em kg (calculado)</label><input type="text" id="tr-kg" class="f-ro" readonly/></div>
       <div id="tr-disp" style="font-size:12px;color:var(--mu);margin:-0.5rem 0 1rem"></div>
@@ -286,6 +289,13 @@
     </div>
     <div class="footer">Dados sincronizados em tempo real</div>
   </div>
+
+  <!-- BOTTOM NAV -->
+  <nav style="position:fixed;bottom:0;left:0;right:0;height:60px;background:var(--sf);border-top:1px solid var(--bd);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)">
+    <button class="bnav-btn on" id="bnav-estoque" onclick="irPara('estoque')"><span style="font-size:22px">📦</span><span style="font-size:11px">Estoque</span></button>
+    <button class="bnav-btn" id="bnav-entrada" onclick="irPara('entrada')"><span style="font-size:22px">📥</span><span style="font-size:11px">Entrada</span></button>
+    <button class="bnav-btn" id="bnav-venda" onclick="irPara('venda')"><span style="font-size:22px">📤</span><span style="font-size:11px">Venda</span></button>
+  </nav>
 
   <div id="sidebar-overlay" onclick="fecharSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300"></div>
   <nav id="sidebar" style="position:fixed;top:0;left:-280px;width:260px;height:100vh;background:var(--sf);z-index:301;transition:left .25s ease;box-shadow:4px 0 20px rgba(0,0,0,.15);display:flex;flex-direction:column;overflow:hidden">
@@ -361,6 +371,8 @@ const R$ = n => (+n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}
 const KG = n => (+n||0).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
 const NOW_ISO = () => { const d=new Date(),p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; };
 const agoraLocal = () => { const d=new Date(),p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+const LOCAIS = ['Sítio','PP','PP - Vó'];
+let _usuarioAtual = ''; // email prefix do usuário logado
 let produtos = [];
 
 SB.auth.onAuthStateChange((ev,session)=>{
@@ -375,7 +387,12 @@ async function login(){
 }
 async function logout(){ await SB.auth.signOut(); window.location.reload(); }
 document.getElementById('l-senha').addEventListener('keydown',e=>{ if(e.key==='Enter') login(); });
-async function iniciar(){ await carregarProdutos(); await carregarDados(); preencherSelectsEntrada(); iniciarLinhasVenda(); }
+async function iniciar(){
+  // Capturar email do usuário logado para exibição
+  const{data:{user}}=await SB.auth.getUser();
+  if(user) _usuarioAtual=user.email?.split('@')[0]||'';
+  await carregarProdutos(); await carregarDados(); preencherSelectsEntrada(); iniciarLinhasVenda();
+}
 
 // PRODUTOS
 async function carregarProdutos(){
@@ -536,36 +553,41 @@ async function confirmarVenda(){
 async function carregarDados(){
   const{data:todosMovs,error:e1}=await SB.from('movimentacoes').select('tipo,qty_kg,local,is_transferencia,criado_em,produto_id,produto_nome').order('criado_em',{ascending:false});
   if(e1){console.error(e1);return;}
-  const{data:movRecentes,error:e2}=await SB.from('movimentacoes').select('*').order('criado_em',{ascending:false}).limit(50);
+  const{data:movRecentes,error:e2}=await SB.from('movimentacoes').select('*').order('criado_em',{ascending:false}).limit(10);
+  // Populando mapa de usuários a partir dos dados já carregados
+  (movRecentes||[]).filter(m=>m.user_id).forEach(m=>{ if(!_usuariosMap[m.user_id]&&m.vendedor) _usuariosMap[m.user_id]=m.vendedor; });
   if(e2){console.error(e2);return;}
   const movs=todosMovs||[], hoje=NOW_ISO();
   const enHj=movs.filter(m=>m.tipo==='entrada'&&!m.is_transferencia&&m.criado_em?.startsWith(hoje)).reduce((a,m)=>a+ +m.qty_kg,0);
   const saHj=movs.filter(m=>m.tipo==='saida'  &&!m.is_transferencia&&m.criado_em?.startsWith(hoje)).reduce((a,m)=>a+ +m.qty_kg,0);
   const kgSitio=movs.filter(m=>m.local==='Sítio').reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0);
   const kgCasa =movs.filter(m=>m.local==='PP').reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0);
+  const kgVo   =movs.filter(m=>m.local==='PP - Vó').reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0);
   const kgSL   =movs.filter(m=>!m.local).reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0);
-  const est=kgSitio+kgCasa+kgSL;
+  const est=kgSitio+kgCasa+kgVo+kgSL;
   document.getElementById('v-est').textContent  =KG(Math.max(0,est));
   document.getElementById('v-en').textContent   =KG(enHj);
   document.getElementById('v-sa').textContent   =KG(saHj);
   document.getElementById('v-sitio').textContent=KG(Math.max(0,kgSitio));
   document.getElementById('v-casa').textContent =KG(Math.max(0,kgCasa));
+  document.getElementById('v-vo').textContent   =KG(Math.max(0,kgVo));
 
   // FIX: Estoque por produto usando produto_id como chave (não nome)
   const porProd={};
   movs.forEach(m=>{
     if(!m.produto_id&&!m.produto_nome) return;
     const key=m.produto_id||m.produto_nome, nome=m.produto_nome||key;
-    if(!porProd[key]) porProd[key]={nome,total:0,sitio:0,casa:0,semLocal:0};
+    if(!porProd[key]) porProd[key]={nome,total:0,sitio:0,casa:0,vo:0,semLocal:0};
     const d=m.tipo==='entrada'?+m.qty_kg:-m.qty_kg;
     porProd[key].total+=d;
     if(m.local==='Sítio') porProd[key].sitio+=d;
     else if(m.local==='PP') porProd[key].casa+=d;
+    else if(m.local==='PP - Vó') porProd[key].vo+=d;
     else porProd[key].semLocal+=d;
   });
   const elP=document.getElementById('estoque-por-produto'), prods=Object.values(porProd).filter(p=>p.total>0.001);
   if(!prods.length){elP.innerHTML='<div style="font-size:13px;color:var(--mu);padding:.5rem 0">Nenhum produto em estoque.</div>';}
-  else{elP.innerHTML=prods.map(p=>`<div class="item" style="margin-bottom:6px"><div class="item-body"><div class="item-nome">${p.nome}</div><div class="item-det">🏡 Sítio: ${KG(Math.max(0,p.sitio))} kg &nbsp;·&nbsp; 🏠 PP: ${KG(Math.max(0,p.casa))} kg${p.semLocal>0.001?` &nbsp;·&nbsp; Sem local: ${KG(p.semLocal)} kg`:''}</div></div><div class="item-val g">${KG(Math.max(0,p.total))} kg</div></div>`).join('');}
+  else{elP.innerHTML=prods.map(p=>`<div class="item" style="margin-bottom:6px"><div class="item-body"><div class="item-nome">${p.nome}</div><div class="item-det">🏡 Sítio: ${KG(Math.max(0,p.sitio))} kg &nbsp;·&nbsp; 🏠 PP: ${KG(Math.max(0,p.casa))} kg &nbsp;·&nbsp; 👵 PP - Vó: ${KG(Math.max(0,p.vo))} kg${p.semLocal>0.001?` &nbsp;·&nbsp; Sem local: ${KG(p.semLocal)} kg`:''}</div></div><div class="item-val g">${KG(Math.max(0,p.total))} kg</div></div>`).join('');}
 
   const bg=est<=0?'#333':est<=5?'#b92c2c':'var(--g)';
   const cp=document.getElementById('card-est'); cp.style.background=cp.style.borderColor=bg;
@@ -576,7 +598,8 @@ async function carregarDados(){
     const dt=new Date(m.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     const isE=m.tipo==='entrada', isT=m.is_transferencia===true, isF=m.fiado===true;
     const titulo=m.produto_nome||(isE?'Entrada de estoque':'Saída');
-    const partes=[]; if(m.vendedor) partes.push('👤 '+m.vendedor); if(m.conta) partes.push('🏦 '+m.conta); if(m.cliente) partes.push('🛒 '+m.cliente); if(m.unidades) partes.push(m.unidades+' un.'); if(m.local) partes.push('📍 '+m.local);
+    const nomeU=m.user_id?(_usuariosMap[m.user_id]||m.user_id.slice(0,8)):'';
+    const partes=[]; if(m.vendedor) partes.push('👤 '+m.vendedor); if(m.conta) partes.push('🏦 '+m.conta); if(m.cliente) partes.push('🛒 '+m.cliente); if(m.unidades) partes.push(m.unidades+' un.'); if(m.local) partes.push('📍 '+m.local); if(nomeU) partes.push('🔑 '+nomeU);
     const sub=partes.join(' · ')||dt;
     return `<div class="item" style="${isF&&!m.fiado_pago?'border-left:3px solid var(--r)':isT?'border-left:3px solid var(--b)':''}"><div class="item-icon ${isT?'':isE?'g':'r'}">${isT?'🔄':isE?'📥':'📤'}</div><div class="item-body"><div class="item-nome">${titulo}</div><div class="item-det">${sub}${isF?' · <span style="color:var(--r);font-weight:600">'+(m.fiado_pago?'✅ Pago':'🕐 FIADO — '+(m.fiado_nome||m.cliente||''))+'</span>':''}</div><div class="item-det" style="font-size:11px;opacity:.6">${dt}</div></div><div class="item-val ${isE?'g':'r'}">${isE?'+':'−'}${KG(m.qty_kg)} kg</div></div>`;
   }).join('');
@@ -587,8 +610,10 @@ const subtitulos={estoque:'Controle de estoque',entrada:'Entrada de estoque',ven
 function irPara(aba){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   document.querySelectorAll('.sb-btn').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.bnav-btn').forEach(b=>b.classList.remove('on'));
   document.getElementById('tab-'+aba).classList.add('on');
   const n=document.getElementById('nav-'+aba); if(n) n.classList.add('on');
+  const bn=document.getElementById('bnav-'+aba); if(bn) bn.classList.add('on');
   document.getElementById('hd-sub').textContent=subtitulos[aba]||'';
   fecharSidebar();
   if(aba==='entrada')   preencherSelectsEntrada();
@@ -602,7 +627,8 @@ function fecharSidebar(){ document.getElementById('sidebar').style.left='-280px'
 
 // TRANSFERÊNCIA
 function onTrProduto(){ const id=document.getElementById('tr-produto').value, prev=document.getElementById('tr-prev'); if(!id){prev.style.display='none';document.getElementById('tr-kg').value='';return;} const p=produtos.find(x=>x.id===id); if(!p) return; prev.style.display='block'; prev.innerHTML=`<strong>${EMOJI[p.tipo]||'📦'} ${p.nome}</strong> · ${p.peso_g}g por unidade`; calcTr(); onTrOrigem(); }
-async function onTrOrigem(){ const id=document.getElementById('tr-produto').value; if(!id) return; const origem=document.getElementById('tr-origem').value; document.getElementById('tr-destino').value=origem==='Sítio'?'PP':'Sítio'; const{data}=await SB.from('movimentacoes').select('tipo,qty_kg,local').eq('produto_id',id); const kg=(data||[]).filter(m=>m.local===origem).reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0); const disp=Math.max(0,kg); const el=document.getElementById('tr-disp'); el.textContent=`Disponível em ${origem}: ${KG(disp)} kg`; el.style.color=disp>0?'var(--g2)':'var(--r)'; }
+async function onTrOrigem(){ const id=document.getElementById('tr-produto').value; if(!id) return; const origem=document.getElementById('tr-origem').value; const opts = LOCAIS.filter(l=>l!==origem);
+  document.getElementById('tr-destino').value = opts[0]||'PP'; const{data}=await SB.from('movimentacoes').select('tipo,qty_kg,local').eq('produto_id',id); const kg=(data||[]).filter(m=>m.local===origem).reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0); const disp=Math.max(0,kg); const el=document.getElementById('tr-disp'); el.textContent=`Disponível em ${origem}: ${KG(disp)} kg`; el.style.color=disp>0?'var(--g2)':'var(--r)'; }
 function calcTr(){ const id=document.getElementById('tr-produto').value, qtd=parseInt(document.getElementById('tr-qtd').value), p=produtos.find(x=>x.id===id); document.getElementById('tr-kg').value=(p&&qtd>0)?KG((p.peso_g*qtd)/1000)+' kg':''; }
 async function confirmarTransferencia(){
   const id=document.getElementById('tr-produto').value, qtd=parseInt(document.getElementById('tr-qtd').value), origem=document.getElementById('tr-origem').value, destino=document.getElementById('tr-destino').value;
@@ -663,9 +689,13 @@ async function gerarRelatorio(){
   if(error){toast('Erro: '+error.message);return;}
   _dadosCache=data||[];
   _usuariosMap={};
-  _dadosCache.filter(m=>m.user_id&&m.vendedor).forEach(m=>{if(!_usuariosMap[m.user_id]) _usuariosMap[m.user_id]=m.vendedor;});
+  // Prefixo do email como identificador de usuário
   const{data:{user}}=await SB.auth.getUser();
-  if(user) _usuariosMap[user.id]=_usuariosMap[user.id]||user.email?.split('@')[0]||'eu';
+  if(user){
+    const prefixo=user.email?.split('@')[0]||'eu';
+    _usuarioAtual=prefixo;
+    _usuariosMap[user.id]=prefixo;
+  }
   renderRelatorio(_dadosCache);
 }
 function renderRelatorio(data){
