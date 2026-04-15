@@ -112,17 +112,6 @@
     tr:last-child td{border-bottom:none}
     .td-r{text-align:right;font-family:'DM Mono',monospace}
     .td-mu{font-size:11px;color:var(--mu)}
-    /* AUTOCOMPLETE CLIENTE */
-    .ac-wrap{position:relative}
-    .ac-list{position:absolute;top:100%;left:0;right:0;background:var(--sf);border:1.5px solid var(--g);border-top:none;border-radius:0 0 var(--rs) var(--rs);z-index:50;max-height:180px;overflow-y:auto;display:none}
-    .ac-list.vis{display:block}
-    .ac-item{padding:.65rem 1rem;font-size:15px;cursor:pointer;color:var(--tx);transition:background .1s}
-    .ac-item:hover,.ac-item.sel{background:var(--gbg);color:var(--gtx)}
-    .ac-novo{padding:.65rem 1rem;font-size:13px;color:var(--b);cursor:pointer;border-top:1px solid var(--bd);font-style:italic}
-    .ac-novo:hover{background:var(--bbg)}
-    /* CLIENTE CARD */
-    .cli-tag{display:inline-flex;align-items:center;gap:6px;background:var(--gbg);color:var(--gtx);border-radius:20px;padding:4px 10px;font-size:13px;font-weight:500;margin-bottom:8px}
-    .cli-tag button{border:none;background:transparent;color:var(--gtx);cursor:pointer;font-size:14px;line-height:1;padding:0 2px}
   </style>
 </head>
 <body>
@@ -212,17 +201,7 @@
           <option value="Amostra">Amostra</option><option value="Uso próprio">Uso próprio</option>
         </select>
       </div>
-      <div class="f" id="vd-cliente-wrap">
-        <label>Cliente <span style="color:var(--r)">*</span></label>
-        <div class="ac-wrap">
-          <input type="text" id="vd-cliente" placeholder="Digite o nome do cliente..." autocomplete="off" oninput="onClienteInput(this.value)" onkeydown="onClienteKey(event)"/>
-          <div class="ac-list" id="ac-lista"></div>
-        </div>
-        <div id="cli-selecionado" style="display:none" class="cli-tag">
-          <span id="cli-sel-nome"></span>
-          <button onclick="limparClienteSelecionado()">✕</button>
-        </div>
-      </div>
+      <div class="f"><label>Cliente (opcional)</label><input type="text" id="vd-cliente" placeholder="Ex: Mercado Central"/></div>
       <div class="f"><label>Observação (opcional)</label><input type="text" id="vd-obs" placeholder="Ex: Entrega agendada"/></div>
       <div style="display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:var(--rs);padding:.85rem 1rem;margin-bottom:1rem;border:1.5px solid var(--bd)" id="fiado-wrap">
         <input type="checkbox" id="vd-fiado" style="width:18px;height:18px;cursor:pointer;accent-color:var(--r)" onchange="toggleFiado()"/>
@@ -234,22 +213,6 @@
       <button class="btn-grande btn-verm" onclick="confirmarVenda()" id="btn-vd" style="margin-top:.5rem">
         <span>📤</span><div><div>Confirmar venda</div><div class="btn-sub">Desconta do estoque</div></div>
       </button>
-    </div>
-    <div class="footer">Dados sincronizados em tempo real</div>
-  </div>
-
-
-  <!-- ABA: CLIENTES -->
-  <div class="tab" id="tab-clientes">
-    <div class="page-pad">
-      <div class="sec-header">
-        <div class="sec-title">Clientes cadastrados</div>
-        <button class="btn-sm btn-sm-g" onclick="abrirNovoCliente()">+ Novo</button>
-      </div>
-      <div class="f" style="margin-bottom:1rem">
-        <input type="text" id="cli-busca" placeholder="Buscar cliente..." oninput="filtrarClientes(this.value)" style="background:var(--sf)"/>
-      </div>
-      <div id="lista-clientes"><div class="vazio"><div class="vazio-i">⏳</div>Carregando...</div></div>
     </div>
     <div class="footer">Dados sincronizados em tempo real</div>
   </div>
@@ -348,7 +311,6 @@
       <button class="sb-btn" id="nav-transf" onclick="irPara('transf')"><span>🔄</span><span>Transferência</span></button>
       <div style="height:1px;background:var(--bd);margin:.5rem 1rem"></div>
       <button class="sb-btn" id="nav-produtos" onclick="irPara('produtos')"><span>🏷️</span><span>Produtos</span></button>
-      <button class="sb-btn" id="nav-clientes" onclick="irPara('clientes')"><span>👥</span><span>Clientes</span></button>
       <button class="sb-btn" id="nav-relatorio" onclick="irPara('relatorio')"><span>📊</span><span>Relatório</span></button>
     </div>
     <div style="padding:1rem;border-top:1px solid var(--bd);flex-shrink:0">
@@ -357,7 +319,7 @@
   </nav>
 </div>
 
-<div class="ov" id="ov-pago" onclick="fecharOvSeFora(event,'ov-pago')" style="z-index:350">
+<div class="ov" id="ov-pago" onclick="fecharOvSeFora(event,'ov-pago')">
   <div class="modal">
     <div class="modal-hd"><h2>✅ Confirmar pagamento</h2><button class="btn-x" onclick="fechar('ov-pago')">✕</button></div>
     <div id="pago-info" style="background:var(--gbg);border-radius:var(--rs);padding:.85rem 1rem;margin-bottom:1rem;font-size:14px;color:var(--gtx)"></div>
@@ -378,31 +340,7 @@
   </div>
 </div>
 
-
-<!-- MODAL CLIENTE (novo / editar) -->
-<div class="ov" id="ov-cliente" onclick="fecharOvSeFora(event,'ov-cliente')" style="z-index:350">
-  <div class="modal">
-    <div class="modal-hd"><h2 id="cli-titulo">👥 Novo cliente</h2><button class="btn-x" onclick="fechar('ov-cliente')">✕</button></div>
-    <div class="f" id="cli-nome-wrap">
-      <label>Nome <span style="color:var(--r)">*</span></label>
-      <input type="text" id="cli-nome" placeholder="Nome completo"/>
-    </div>
-    <div id="cli-nome-fixo" style="display:none;background:var(--gbg);border-radius:var(--rs);padding:.75rem 1rem;margin-bottom:1rem;font-size:15px;font-weight:500;color:var(--gtx)"></div>
-    <div class="f-row">
-      <div class="f"><label>Telefone 1</label><input type="tel" id="cli-tel1" placeholder="(00) 00000-0000" inputmode="tel"/></div>
-      <div class="f"><label>Telefone 2</label><input type="tel" id="cli-tel2" placeholder="(00) 00000-0000" inputmode="tel"/></div>
-    </div>
-    <div class="f"><label>Local (cidade/bairro)</label><input type="text" id="cli-local" placeholder="Ex: São Paulo - SP"/></div>
-    <div class="f"><label>Observação</label><input type="text" id="cli-obs" placeholder="Ex: Prefere sachês"/></div>
-    <input type="hidden" id="cli-id"/>
-    <div class="modal-btns">
-      <button class="btn-cancel" onclick="fechar('ov-cliente')">Cancelar</button>
-      <button class="btn-ok-b" id="btn-salvar-cli" onclick="salvarCliente()">Salvar cliente</button>
-    </div>
-  </div>
-</div>
-
-<div class="ov" id="ov-produto" onclick="fecharOvSeFora(event,'ov-produto')" style="z-index:350">
+<div class="ov" id="ov-produto" onclick="fecharOvSeFora(event,'ov-produto')">
   <div class="modal">
     <div class="modal-hd"><h2 id="prod-titulo">🏷️ Novo produto</h2><button class="btn-x" onclick="fechar('ov-produto')">✕</button></div>
     <div class="f"><label>Nome do produto</label><input type="text" id="p-nome" placeholder="Ex: Pote 500g, Sachê 100g..."/></div>
@@ -453,7 +391,7 @@ async function iniciar(){
   // Capturar email do usuário logado para exibição
   const{data:{user}}=await SB.auth.getUser();
   if(user) _usuarioAtual=user.email?.split('@')[0]||'';
-  await carregarProdutos(); await carregarClientes(); await carregarDados(); preencherSelectsEntrada(); iniciarLinhasVenda();
+  await carregarProdutos(); await carregarDados(); preencherSelectsEntrada(); iniciarLinhasVenda();
 }
 
 // PRODUTOS
@@ -578,27 +516,13 @@ function atualizarTotalVenda(){
   if(totalKg>0){el.style.display='block';el.innerHTML=`<strong>Total: ${KG(totalKg)} kg${totalR>0?' · '+R$(totalR):''}</strong>`;}else el.style.display='none';
 }
 async function confirmarVenda(){
-  const localVenda=document.getElementById('vd-local').value;
-  const vendedor=document.getElementById('vd-vendedor').value.trim();
-  const conta=document.getElementById('vd-conta').value.trim();
-  const obs=document.getElementById('vd-obs').value.trim();
-  const isFiado=document.getElementById('vd-fiado').checked;
-  // Cliente: usa o selecionado do autocomplete ou o digitado manualmente
-  const clienteDigitado=document.getElementById('vd-cliente').value.trim();
-  const clienteNome=_clienteNomeSelecionado||clienteDigitado;
-  const cliente=clienteNome;
+  const localVenda=document.getElementById('vd-local').value, vendedor=document.getElementById('vd-vendedor').value.trim(), conta=document.getElementById('vd-conta').value.trim(), cliente=document.getElementById('vd-cliente').value.trim(), obs=document.getElementById('vd-obs').value.trim(), isFiado=document.getElementById('vd-fiado').checked, fiadoNome=document.getElementById('vd-fiado-nome').value.trim();
   const linhasValidas=linhasVenda.filter(l=>l.prodId&&l.qtd>0);
   if(!linhasValidas.length){alert('Adicione ao menos um produto com quantidade.');return;}
   if(!vendedor){alert('Informe o vendedor(a).');return;}
-  // Cliente obrigatório (fiado usa o mesmo campo de cliente)
-  if(!clienteNome&&!_clienteSelecionadoId){alert('Informe o cliente.');return;}
   if(!isFiado&&!conta){alert('Informe a conta que recebeu.');return;}
+  if(isFiado&&!fiadoNome){alert('Informe o nome do fiado.');return;}
   for(const l of linhasValidas){ const p=produtos.find(x=>x.id===l.prodId); if(l.preco===null||l.preco===undefined||isNaN(l.preco)){alert(`Informe o preço para "${p?p.nome:'produto'}".\n\nSe for doação, coloque 0.`);return;} }
-  // Criar cliente automaticamente se digitou nome sem selecionar
-  if(clienteDigitado && !_clienteSelecionadoId){
-    const novoId=await criarClienteRapido(clienteDigitado);
-    if(novoId) _clienteSelecionadoId=novoId;
-  }
   const reservas={};
   for(const l of linhasValidas){
     const p=produtos.find(x=>x.id===l.prodId); if(!p) continue;
@@ -614,7 +538,7 @@ async function confirmarVenda(){
     for(const l of linhasValidas){
       const p=produtos.find(x=>x.id===l.prodId); if(!p) continue;
       const qty_kg=(p.peso_g*l.qtd)/1000, preco_total=(l.preco||0)*l.qtd;
-      const{error}=await SB.from('movimentacoes').insert({tipo:'saida',qty_kg,produto_id:p.id,produto_nome:p.nome,unidades:l.qtd,preco_total,vendedor:vendedor||null,conta:isFiado?null:(conta||null),cliente:cliente||null,descricao:obs||null,user_id:uid,local:localVenda,fiado:isFiado,fiado_nome:isFiado?clienteNome||null:null,fiado_pago:isFiado?false:null,criado_em:tsVenda});
+      const{error}=await SB.from('movimentacoes').insert({tipo:'saida',qty_kg,produto_id:p.id,produto_nome:p.nome,unidades:l.qtd,preco_total,vendedor:vendedor||null,conta:isFiado?null:(conta||null),cliente:cliente||null,descricao:obs||null,user_id:uid,local:localVenda,fiado:isFiado,fiado_nome:isFiado?fiadoNome||null:null,fiado_pago:isFiado?false:null,criado_em:tsVenda});
       if(error) throw error;
     }
   }catch(e){alert('Erro ao salvar: '+e.message); btn.innerHTML='<span>📤</span><div><div>Confirmar venda</div><div class="btn-sub">Desconta do estoque</div></div>'; btn.disabled=false; return;}
@@ -682,7 +606,7 @@ async function carregarDados(){
 }
 
 // NAVEGAÇÃO
-const subtitulos={estoque:'Controle de estoque',entrada:'Entrada de estoque',venda:'Registrar venda',fiado:'Fiado — pendentes',transf:'Transferência de estoque',produtos:'Produtos',clientes:'Clientes',relatorio:'Relatórios'};
+const subtitulos={estoque:'Controle de estoque',entrada:'Entrada de estoque',venda:'Registrar venda',fiado:'Fiado — pendentes',transf:'Transferência de estoque',produtos:'Produtos',relatorio:'Relatórios'};
 function irPara(aba){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   document.querySelectorAll('.sb-btn').forEach(b=>b.classList.remove('on'));
@@ -696,7 +620,6 @@ function irPara(aba){
   if(aba==='venda')     {preencherSelectsEntrada();resetVenda();}
   if(aba==='fiado')     carregarFiado();
   if(aba==='transf')    preencherSelectTransf();
-  if(aba==='clientes')  carregarClientes();
   if(aba==='relatorio') atalho('mes',document.getElementById('btn-atalho-mes'));
 }
 function abrirSidebar(){ document.getElementById('sidebar').style.left='0'; document.getElementById('sidebar-overlay').style.display='block'; SB.auth.getUser().then(r=>{const el=document.getElementById('sb-user');if(el) el.textContent=r.data?.user?.email||'';}); }
@@ -729,26 +652,8 @@ async function confirmarTransferencia(){
 }
 
 // FIADO
-function toggleFiado(){
-  const f=document.getElementById('vd-fiado').checked;
-  const w=document.getElementById('fiado-cliente-wrap'), fw=document.getElementById('fiado-wrap');
-  // Campo "nome do fiado" separado não é mais usado — cliente já é o fiado
-  w.style.display='none';
-  fw.style.borderColor=f?'var(--r)':'var(--bd)';
-  fw.style.background=f?'var(--rbg)':'var(--bg)';
-  // Campo cliente permanece visível em ambos os casos
-}
-function resetVenda(){
-  document.getElementById('vd-fiado').checked=false;
-  document.getElementById('vd-fiado-nome').value='';
-  document.getElementById('vd-vendedor').value='';
-  document.getElementById('vd-conta').value='';
-  document.getElementById('vd-local').value='Sítio';
-  document.getElementById('fiado-cliente-wrap').style.display='none';
-  document.getElementById('fiado-wrap').style.borderColor='var(--bd)';
-  document.getElementById('fiado-wrap').style.background='var(--bg)';
-  limparClienteSelecionado();
-}
+function toggleFiado(){ const f=document.getElementById('vd-fiado').checked, w=document.getElementById('fiado-cliente-wrap'), fw=document.getElementById('fiado-wrap'); w.style.display=f?'block':'none'; fw.style.borderColor=f?'var(--r)':'var(--bd)'; fw.style.background=f?'var(--rbg)':'var(--bg)'; }
+function resetVenda(){ document.getElementById('vd-fiado').checked=false; document.getElementById('vd-fiado-nome').value=''; document.getElementById('vd-vendedor').value=''; document.getElementById('vd-conta').value=''; document.getElementById('vd-local').value='Sítio'; document.getElementById('fiado-cliente-wrap').style.display='none'; document.getElementById('fiado-wrap').style.borderColor='var(--bd)'; document.getElementById('fiado-wrap').style.background='var(--bg)'; }
 async function carregarFiado(){
   const el=document.getElementById('lista-fiado'); el.innerHTML='<div class="vazio"><div class="vazio-i">⏳</div>Carregando...</div>';
   const{data,error}=await SB.from('movimentacoes').select('*').eq('tipo','saida').eq('fiado',true).eq('fiado_pago',false).order('criado_em',{ascending:false});
