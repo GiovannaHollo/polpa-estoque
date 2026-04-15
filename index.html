@@ -357,7 +357,7 @@
   </nav>
 </div>
 
-<div class="ov" id="ov-pago" onclick="fecharOvSeFora(event,'ov-pago')">
+<div class="ov" id="ov-pago" onclick="fecharOvSeFora(event,'ov-pago')" style="z-index:350">
   <div class="modal">
     <div class="modal-hd"><h2>✅ Confirmar pagamento</h2><button class="btn-x" onclick="fechar('ov-pago')">✕</button></div>
     <div id="pago-info" style="background:var(--gbg);border-radius:var(--rs);padding:.85rem 1rem;margin-bottom:1rem;font-size:14px;color:var(--gtx)"></div>
@@ -380,7 +380,7 @@
 
 
 <!-- MODAL CLIENTE (novo / editar) -->
-<div class="ov" id="ov-cliente" onclick="fecharOvSeFora(event,'ov-cliente')">
+<div class="ov" id="ov-cliente" onclick="fecharOvSeFora(event,'ov-cliente')" style="z-index:350">
   <div class="modal">
     <div class="modal-hd"><h2 id="cli-titulo">👥 Novo cliente</h2><button class="btn-x" onclick="fechar('ov-cliente')">✕</button></div>
     <div class="f" id="cli-nome-wrap">
@@ -402,7 +402,7 @@
   </div>
 </div>
 
-<div class="ov" id="ov-produto" onclick="fecharOvSeFora(event,'ov-produto')">
+<div class="ov" id="ov-produto" onclick="fecharOvSeFora(event,'ov-produto')" style="z-index:350">
   <div class="modal">
     <div class="modal-hd"><h2 id="prod-titulo">🏷️ Novo produto</h2><button class="btn-x" onclick="fechar('ov-produto')">✕</button></div>
     <div class="f"><label>Nome do produto</label><input type="text" id="p-nome" placeholder="Ex: Pote 500g, Sachê 100g..."/></div>
@@ -578,17 +578,27 @@ function atualizarTotalVenda(){
   if(totalKg>0){el.style.display='block';el.innerHTML=`<strong>Total: ${KG(totalKg)} kg${totalR>0?' · '+R$(totalR):''}</strong>`;}else el.style.display='none';
 }
 async function confirmarVenda(){
-  const localVenda=document.getElementById('vd-local').value, vendedor=document.getElementById('vd-vendedor').value.trim(), conta=document.getElementById('vd-conta').value.trim(), cliente=document.getElementById('vd-cliente').value.trim(), obs=document.getElementById('vd-obs').value.trim(), isFiado=document.getElementById('vd-fiado').checked, fiadoNome=document.getElementById('vd-fiado-nome').value.trim();
+  const localVenda=document.getElementById('vd-local').value;
+  const vendedor=document.getElementById('vd-vendedor').value.trim();
+  const conta=document.getElementById('vd-conta').value.trim();
+  const obs=document.getElementById('vd-obs').value.trim();
+  const isFiado=document.getElementById('vd-fiado').checked;
+  // Cliente: usa o selecionado do autocomplete ou o digitado manualmente
+  const clienteDigitado=document.getElementById('vd-cliente').value.trim();
+  const clienteNome=_clienteNomeSelecionado||clienteDigitado;
+  const cliente=clienteNome;
   const linhasValidas=linhasVenda.filter(l=>l.prodId&&l.qtd>0);
   if(!linhasValidas.length){alert('Adicione ao menos um produto com quantidade.');return;}
   if(!vendedor){alert('Informe o vendedor(a).');return;}
-  // Cliente obrigatório exceto em vendas fiadas (que usam fiado_nome)
-  if(!isFiado && !_clienteSelecionadoId && !document.getElementById('vd-cliente').value.trim()){
-    alert('Informe o cliente.');return;
-  }
+  // Cliente obrigatório (fiado usa o mesmo campo de cliente)
+  if(!clienteNome&&!_clienteSelecionadoId){alert('Informe o cliente.');return;}
   if(!isFiado&&!conta){alert('Informe a conta que recebeu.');return;}
-  if(isFiado&&!fiadoNome){alert('Informe o nome do fiado.');return;}
   for(const l of linhasValidas){ const p=produtos.find(x=>x.id===l.prodId); if(l.preco===null||l.preco===undefined||isNaN(l.preco)){alert(`Informe o preço para "${p?p.nome:'produto'}".\n\nSe for doação, coloque 0.`);return;} }
+  // Criar cliente automaticamente se digitou nome sem selecionar
+  if(clienteDigitado && !_clienteSelecionadoId){
+    const novoId=await criarClienteRapido(clienteDigitado);
+    if(novoId) _clienteSelecionadoId=novoId;
+  }
   const reservas={};
   for(const l of linhasValidas){
     const p=produtos.find(x=>x.id===l.prodId); if(!p) continue;
@@ -604,7 +614,7 @@ async function confirmarVenda(){
     for(const l of linhasValidas){
       const p=produtos.find(x=>x.id===l.prodId); if(!p) continue;
       const qty_kg=(p.peso_g*l.qtd)/1000, preco_total=(l.preco||0)*l.qtd;
-      const{error}=await SB.from('movimentacoes').insert({tipo:'saida',qty_kg,produto_id:p.id,produto_nome:p.nome,unidades:l.qtd,preco_total,vendedor:vendedor||null,conta:isFiado?null:(conta||null),cliente:cliente||null,descricao:obs||null,user_id:uid,local:localVenda,fiado:isFiado,fiado_nome:isFiado?fiadoNome||null:null,fiado_pago:isFiado?false:null,criado_em:tsVenda});
+      const{error}=await SB.from('movimentacoes').insert({tipo:'saida',qty_kg,produto_id:p.id,produto_nome:p.nome,unidades:l.qtd,preco_total,vendedor:vendedor||null,conta:isFiado?null:(conta||null),cliente:cliente||null,descricao:obs||null,user_id:uid,local:localVenda,fiado:isFiado,fiado_nome:isFiado?clienteNome||null:null,fiado_pago:isFiado?false:null,criado_em:tsVenda});
       if(error) throw error;
     }
   }catch(e){alert('Erro ao salvar: '+e.message); btn.innerHTML='<span>📤</span><div><div>Confirmar venda</div><div class="btn-sub">Desconta do estoque</div></div>'; btn.disabled=false; return;}
@@ -722,13 +732,11 @@ async function confirmarTransferencia(){
 function toggleFiado(){
   const f=document.getElementById('vd-fiado').checked;
   const w=document.getElementById('fiado-cliente-wrap'), fw=document.getElementById('fiado-wrap');
-  const cliWrap=document.getElementById('vd-cliente-wrap');
-  w.style.display=f?'block':'none';
+  // Campo "nome do fiado" separado não é mais usado — cliente já é o fiado
+  w.style.display='none';
   fw.style.borderColor=f?'var(--r)':'var(--bd)';
   fw.style.background=f?'var(--rbg)':'var(--bg)';
-  // Quando fiado, esconde campo de cliente (usa o nome do fiado)
-  if(cliWrap) cliWrap.style.display=f?'none':'block';
-  if(f) limparClienteSelecionado();
+  // Campo cliente permanece visível em ambos os casos
 }
 function resetVenda(){
   document.getElementById('vd-fiado').checked=false;
@@ -740,7 +748,6 @@ function resetVenda(){
   document.getElementById('fiado-wrap').style.borderColor='var(--bd)';
   document.getElementById('fiado-wrap').style.background='var(--bg)';
   limparClienteSelecionado();
-  const cw=document.getElementById('vd-cliente-wrap');if(cw) cw.style.display='block';
 }
 async function carregarFiado(){
   const el=document.getElementById('lista-fiado'); el.innerHTML='<div class="vazio"><div class="vazio-i">⏳</div>Carregando...</div>';
