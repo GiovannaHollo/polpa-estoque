@@ -496,7 +496,7 @@ function preencherSelectsEntrada(){
 
 // ─── CLIENTES ────────────────────────────────────────────────
 async function carregarClientes(){
-  const{data,error}=await SB.from('clientes').select('*').order('nome');
+  const{data,error}=await SB.from('clientes').select('*').eq('ativo',true).order('nome');
   if(error){console.error('Erro ao carregar clientes:',error);clientes=[];return;}
   clientes=data||[];
   renderListaClientes(clientes);
@@ -577,6 +577,7 @@ async function salvarCliente(){
     telefone2: document.getElementById('cli-tel2').value.trim()||null,
     local:     document.getElementById('cli-local').value.trim()||null,
     obs:       document.getElementById('cli-obs-campo').value.trim()||null,
+    ativo:     true,
   };
   const btn=document.getElementById('btn-salvar-cli');
   btn.textContent='Salvando...'; btn.disabled=true;
@@ -594,8 +595,8 @@ async function salvarCliente(){
 }
 
 async function excluirCliente(id,nome){
-  if(!confirm(`Excluir o cliente "${nome}"?\n\nEsta ação não pode ser desfeita.`)) return;
-  const{error}=await SB.from('clientes').delete().eq('id',id);
+  if(!confirm(`Remover o cliente "${nome}"?\n\nEle não aparecerá mais no app, mas o histórico de vendas será mantido.`)) return;
+  const{error}=await SB.from('clientes').update({ativo:false}).eq('id',id);
   if(error){alert('Erro: '+error.message);return;}
   await carregarClientes();
   toast('Cliente removido.');
