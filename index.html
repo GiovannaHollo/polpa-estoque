@@ -298,7 +298,7 @@
       <div class="bloco" id="r-bloco-tab" style="display:none">
         <div class="bloco-titulo">Movimentações do período</div>
         <div class="tabela-wrap">
-          <table><thead><tr><th>Data</th><th>Tipo</th><th>Produto</th><th>Vendedor</th><th>Conta</th><th>Estoque</th><th>Usuário</th><th style="text-align:right">Kg</th><th style="text-align:right">Valor</th></tr></thead><tbody id="r-tbody"></tbody></table>
+          <table><thead><tr><th>Data</th><th>Tipo</th><th>Produto</th><th>Vendedor</th><th>Conta</th><th>Estoque</th><th>Cliente</th><th>Usuário</th><th style="text-align:right">Kg</th><th style="text-align:right">Valor</th></tr></thead><tbody id="r-tbody"></tbody></table>
         </div>
       </div>
     </div>
@@ -968,7 +968,7 @@ function renderRelatorio(data){
     const nu=(m.user_id&&_usuariosMap[m.user_id])?_usuariosMap[m.user_id]:'—';
     const tl=m.is_transferencia?'🔄 Transf.':m.tipo==='entrada'?'📥 Entrada':'📤 Venda';
     const ft=m.fiado&&!m.fiado_pago?'<br><span style="color:var(--r);font-size:10px;font-weight:600">FIADO</span>':m.fiado&&m.fiado_pago?'<br><span style="color:var(--g2);font-size:10px;font-weight:600">✅ PAGO</span>':'';
-    return `<tr><td class="td-mu">${fmtDt(m.criado_em)}</td><td>${tl}</td><td>${m.produto_nome||m.descricao||'—'}</td><td>${m.vendedor||'—'}</td><td>${m.conta||'—'}</td><td>${m.local||'—'}</td><td class="td-mu">${nu}</td><td class="td-r">${m.tipo==='entrada'?'+':'−'}${KG(m.qty_kg)}</td><td class="td-r">${m.preco_total?R$(m.preco_total):'—'}${ft}</td></tr>`;
+    return `<tr><td class="td-mu">${fmtDt(m.criado_em)}</td><td>${tl}</td><td>${m.produto_nome||m.descricao||'—'}</td><td>${m.vendedor||'—'}</td><td>${m.conta||'—'}</td><td>${m.local||'—'}</td><td>${m.cliente||'—'}</td><td class="td-mu">${nu}</td><td class="td-r">${m.tipo==='entrada'?'+':'−'}${KG(m.qty_kg)}</td><td class="td-r">${m.preco_total?R$(m.preco_total):'—'}${ft}</td></tr>`;
   }).join('');}
   show('r-bloco-tab');
 }
