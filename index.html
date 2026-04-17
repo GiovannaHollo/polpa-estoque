@@ -849,11 +849,11 @@ async function carregarDados(){
   });
   const elP=document.getElementById('estoque-por-produto'), prods=Object.values(porProd).filter(p=>p.total>0.001);
   if(!prods.length){elP.innerHTML='<div style="font-size:13px;color:var(--mu);padding:.5rem 0">Nenhum produto em estoque.</div>';}
-  else{elP.innerHTML=prods.map(p=>`<div class="item" style="margin-bottom:6px"><div class="item-body"><div class="item-nome">${p.nome}</div><div class="item-det">🏡 Sítio: ${KG(Math.max(0,p.sitio))} kg &nbsp;·&nbsp; 🏠 PP: ${KG(Math.max(0,p.casa))} kg &nbsp;·&nbsp; 👵 PP - Vó: ${KG(Math.max(0,p.vo))} kg${p.semLocal>0.001?` &nbsp;·&nbsp; Sem local: ${KG(p.semLocal)} kg`:''}</div></div><div class="item-val g">${KG(Math.max(0,p.total))} kg</div></div>`).join('');}
+  else{elP.innerHTML=prods.map(p=>`<div class="item" style="margin-bottom:6px"><div class="item-body"><div class="item-nome">${p.nome}</div><div class="item-det">🏕️ ${KG(Math.max(0,p.sitio))} kg &nbsp;·&nbsp; 🏠 ${KG(Math.max(0,p.casa))} kg &nbsp;·&nbsp; 👵 ${KG(Math.max(0,p.vo))} kg${p.semLocal>0.001?` &nbsp;·&nbsp; 📍 ${KG(p.semLocal)} kg`:''}</div></div><div class="item-val g">${KG(Math.max(0,p.total))} kg</div></div>`).join('');}
 
   // ── POR LOCAL ────────────────────────────────────────────
   const locaisConfig = [
-    {key:'Sítio',  emoji:'🏡', total:kgSitio},
+    {key:'Sítio',  emoji:'🏕️', total:kgSitio},
     {key:'PP',     emoji:'🏠', total:kgCasa},
     {key:'PP - Vó',emoji:'👵', total:kgVo},
   ];
@@ -1018,7 +1018,7 @@ function renderRelatorio(data){
   saidasPagas.forEach(m=>{const c=m.conta||'Sem conta';if(!porConta[c]) porConta[c]={nome:c,kg:0,r:0};porConta[c].kg+=+m.qty_kg;porConta[c].r+=(+m.preco_total||0);});
   renderBarras('r-chart-conta',Object.values(porConta).sort((a,b)=>b.r-a.r),'r','',v=>R$(v)); show('r-bloco-conta');
   const porVendNC={};
-  saidasNC.forEach(m=>{const v=m.vendedor||'Sem vendedor';if(!porVendNC[v]) porVendNC[v]={nome:v,kg:0};porVendNC[v].kg+=+m.qty_kg;});
+  saidasNC.forEach(m=>{const v=m.produto_nome||'Produto removido';if(!porVendNC[v]) porVendNC[v]={nome:v,kg:0};porVendNC[v].kg+=+m.qty_kg;});
   if(saidasNC.length){renderBarras('r-chart-nc',Object.values(porVendNC).sort((a,b)=>b.kg-a.kg),'kg','b',v=>KG(v)+' kg');show('r-bloco-nc');}
   else{document.getElementById('r-bloco-nc').style.display='none';}
   const tbody=document.getElementById('r-tbody');
