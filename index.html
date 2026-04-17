@@ -279,8 +279,9 @@
       <div class="kpi-grid" id="r-kpis" style="display:none">
         <div class="kpi dest"><div class="kl">Faturamento</div><div class="kv" id="r-fat">—</div><div class="ku">vendas pagas no período</div></div>
         <div class="kpi" style="border-left:3px solid var(--r)"><div class="kl">A receber</div><div class="kv" id="r-areceber" style="color:var(--r)">—</div><div class="ku">fiados pendentes</div></div>
-        <div class="kpi"><div class="kl">Kg vendidos</div><div class="kv" id="r-kgv">—</div><div class="ku">kg saídos</div></div>
+        <div class="kpi"><div class="kl">Kg vendidos</div><div class="kv" id="r-kgv">—</div><div class="ku">kg saídos (comercial)</div></div>
         <div class="kpi"><div class="kl">Kg produzidos</div><div class="kv" id="r-kgc">—</div><div class="ku">kg entrados</div></div>
+        <div class="kpi" style="grid-column:span 2;border-left:3px solid var(--mu)"><div class="kl">Kg não comercial</div><div class="kv" id="r-kgnc" style="color:var(--mu)">—</div><div class="ku">amostras e uso próprio</div></div>
       </div>
       <button class="export-btn" id="r-export" style="display:none" onclick="exportarCSV()">📥 Exportar CSV (Excel)</button>
       <div class="bloco" id="r-bloco-prod" style="display:none">
@@ -294,6 +295,10 @@
       <div class="bloco" id="r-bloco-conta" style="display:none">
         <div class="bloco-titulo">Faturamento por conta <span style="font-size:12px;color:var(--mu);font-weight:400">(apenas pagas)</span></div>
         <div id="r-chart-conta"></div>
+      </div>
+      <div class="bloco" id="r-bloco-nc" style="display:none">
+        <div class="bloco-titulo">Saídas não comerciais <span style="font-size:12px;color:var(--mu);font-weight:400">(Amostra e Uso próprio)</span></div>
+        <div id="r-chart-nc"></div>
       </div>
       <div class="bloco" id="r-bloco-tab" style="display:none">
         <div class="bloco-titulo">Movimentações do período</div>
@@ -937,18 +942,25 @@ async function gerarRelatorio(){
 }
 function renderRelatorio(data){
   const show=id=>document.getElementById(id).style.display='block';
+  const NC_CONTAS=['Amostra','Uso próprio'];
   const entradas=data.filter(m=>m.tipo==='entrada'&&!m.is_transferencia);
   const saidas  =data.filter(m=>m.tipo==='saida'  &&!m.is_transferencia);
-  const fat     =saidas.filter(m=>!m.fiado||m.fiado_pago).reduce((a,m)=>a+(+m.preco_total||0),0);
-  const aReceber=saidas.filter(m=>m.fiado&&!m.fiado_pago).reduce((a,m)=>a+(+m.preco_total||0),0);
-  const kgV=saidas.reduce((a,m)=>a+ +m.qty_kg,0), kgC=entradas.reduce((a,m)=>a+ +m.qty_kg,0);
+  // Não comercial: saídas com conta = Amostra ou Uso próprio
+  const saidasNC   =saidas.filter(m=>NC_CONTAS.includes(m.conta));
+  // Comercial: todas as saídas exceto não comerciais
+  const saidasCom  =saidas.filter(m=>!NC_CONTAS.includes(m.conta));
+  const fat     =saidasCom.filter(m=>!m.fiado||m.fiado_pago).reduce((a,m)=>a+(+m.preco_total||0),0);
+  const aReceber=saidasCom.filter(m=>m.fiado&&!m.fiado_pago).reduce((a,m)=>a+(+m.preco_total||0),0);
+  const kgV=saidasCom.reduce((a,m)=>a+ +m.qty_kg,0), kgC=entradas.reduce((a,m)=>a+ +m.qty_kg,0);
+  const kgNC=saidasNC.reduce((a,m)=>a+ +m.qty_kg,0);
   document.getElementById('r-fat').textContent      =R$(fat);
   document.getElementById('r-areceber').textContent =R$(aReceber);
   document.getElementById('r-kgv').textContent      =KG(kgV)+' kg';
   document.getElementById('r-kgc').textContent      =KG(kgC)+' kg';
+  document.getElementById('r-kgnc').textContent     =KG(kgNC)+' kg';
   show('r-kpis'); show('r-export');
-  const saidasPagas=saidas.filter(m=>!m.fiado||m.fiado_pago);
-  const qtdF=saidas.filter(m=>m.fiado&&!m.fiado_pago).length;
+  const saidasPagas=saidasCom.filter(m=>!m.fiado||m.fiado_pago);
+  const qtdF=saidasCom.filter(m=>m.fiado&&!m.fiado_pago).length;
   const sfx=qtdF>0?`(exclui ${qtdF} fiado${qtdF>1?'s':''} pendente${qtdF>1?'s':''})` :'';
   document.getElementById('r-prod-sub').textContent=sfx;
   document.getElementById('r-vend-sub').textContent=sfx;
@@ -961,6 +973,11 @@ function renderRelatorio(data){
   const porConta={};
   saidasPagas.forEach(m=>{const c=m.conta||'Sem conta';if(!porConta[c]) porConta[c]={nome:c,kg:0,r:0};porConta[c].kg+=+m.qty_kg;porConta[c].r+=(+m.preco_total||0);});
   renderBarras('r-chart-conta',Object.values(porConta).sort((a,b)=>b.r-a.r),'r','',v=>R$(v)); show('r-bloco-conta');
+  // Gráfico não comercial por vendedor
+  const porVendNC={};
+  saidasNC.forEach(m=>{const v=m.vendedor||'Sem vendedor';if(!porVendNC[v]) porVendNC[v]={nome:v,kg:0};porVendNC[v].kg+=+m.qty_kg;});
+  if(saidasNC.length){renderBarras('r-chart-nc',Object.values(porVendNC).sort((a,b)=>b.kg-a.kg),'kg','b',v=>KG(v)+' kg');show('r-bloco-nc');}
+  else{document.getElementById('r-bloco-nc').style.display='none';}
   const tbody=document.getElementById('r-tbody');
   const fmtDt=s=>new Date(s).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
   if(!data.length){tbody.innerHTML='<tr><td colspan="9" class="sem-dados">Nenhuma movimentação no período.</td></tr>';}
