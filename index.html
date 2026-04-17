@@ -131,6 +131,20 @@
     .cli-nome{font-size:14px;font-weight:500;color:var(--tx)}
     .cli-det{font-size:12px;color:var(--mu);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .cli-acoes{display:flex;gap:6px;flex-shrink:0}
+    /* TOGGLE VISUALIZAÇÃO ESTOQUE */
+    .view-toggle{display:flex;background:var(--bd);border-radius:var(--rs);padding:3px;gap:3px;margin-bottom:12px}
+    .view-toggle-btn{flex:1;border:none;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:var(--mu);transition:all .15s}
+    .view-toggle-btn.on{background:var(--sf);color:var(--g);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+    /* ESTOQUE POR LOCAL */
+    .local-bloco{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rs);margin-bottom:10px;overflow:hidden}
+    .local-bloco-hd{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;background:var(--gbg);border-bottom:1px solid var(--bd)}
+    .local-bloco-nome{font-size:14px;font-weight:600;color:var(--gtx)}
+    .local-bloco-total{font-size:14px;font-weight:600;font-family:'DM Mono',monospace;color:var(--g2)}
+    .local-bloco-body{padding:.5rem 1rem .75rem}
+    .local-prod-row{display:flex;justify-content:space-between;align-items:center;padding:.45rem 0;border-bottom:1px solid var(--bd);font-size:13px}
+    .local-prod-row:last-child{border-bottom:none}
+    .local-prod-nome{color:var(--tx)}
+    .local-prod-kg{font-family:'DM Mono',monospace;color:var(--g2);font-weight:600}
   </style>
 </head>
 <body>
@@ -162,13 +176,16 @@
       <div class="card"><div class="lbl">Entradas hoje</div><div class="val" id="v-en">—</div><div class="un">kg</div></div>
       <div class="card"><div class="lbl">Saídas hoje</div><div class="val" id="v-sa">—</div><div class="un">kg</div></div>
     </div>
-    <div class="page-pad" style="padding-bottom:0">
-      <div class="sec-title" style="margin-bottom:8px">Estoque por produto</div>
+    <div class="page-pad" style="padding-bottom:1.5rem">
+      <div class="sec-header" style="margin-bottom:10px">
+        <div class="sec-title">Detalhamento do estoque</div>
+      </div>
+      <div class="view-toggle">
+        <button class="view-toggle-btn on" id="toggle-produto" onclick="mudarVisualizacao('produto')">Por produto</button>
+        <button class="view-toggle-btn" id="toggle-local" onclick="mudarVisualizacao('local')">Por local</button>
+      </div>
       <div id="estoque-por-produto"></div>
-    </div>
-    <div class="page-pad">
-      <div class="sec-title" style="margin-bottom:10px">Últimas movimentações</div>
-      <div id="lista-movs"><div class="vazio"><div class="vazio-i">⏳</div>Carregando...</div></div>
+      <div id="estoque-por-local" style="display:none"></div>
     </div>
     <div class="footer">Dados sincronizados em tempo real</div>
   </div>
@@ -447,7 +464,17 @@ const agoraLocal = () => { const d=new Date(),p=n=>String(n).padStart(2,'0'); re
 const LOCAIS = ['Sítio','PP','PP - Vó'];
 let _usuarioAtual = '';
 let produtos = [];
-let clientes = []; // cache global de clientes
+let clientes = [];
+
+// ─── TOGGLE VISUALIZAÇÃO ESTOQUE ────────────────────────────
+let _vizEstoque = 'produto'; // 'produto' ou 'local'
+function mudarVisualizacao(modo) {
+  _vizEstoque = modo;
+  document.getElementById('toggle-produto').classList.toggle('on', modo === 'produto');
+  document.getElementById('toggle-local').classList.toggle('on', modo === 'local');
+  document.getElementById('estoque-por-produto').style.display = modo === 'produto' ? 'block' : 'none';
+  document.getElementById('estoque-por-local').style.display = modo === 'local' ? 'block' : 'none';
+}
 
 // ─── AUTH ────────────────────────────────────────────────────
 SB.auth.onAuthStateChange((ev,session)=>{
@@ -649,12 +676,10 @@ function limparClienteSelecionado(){
 }
 
 async function novoClienteRapido(nome){
-  // Fecha autocomplete e abre modal de cadastro com o nome preenchido
   document.getElementById('ac-lista').classList.remove('vis');
   abrirNovoCliente(nome);
 }
 
-// Fechar autocomplete ao clicar fora
 document.addEventListener('click',e=>{
   if(!e.target.closest('#vd-cliente-wrap')){
     const lista=document.getElementById('ac-lista');
@@ -808,6 +833,8 @@ async function carregarDados(){
   document.getElementById('v-sitio').textContent=KG(Math.max(0,kgSitio));
   document.getElementById('v-casa').textContent =KG(Math.max(0,kgCasa));
   document.getElementById('v-vo').textContent   =KG(Math.max(0,kgVo));
+
+  // ── POR PRODUTO ──────────────────────────────────────────
   const porProd={};
   movs.forEach(m=>{
     if(!m.produto_id&&!m.produto_nome) return;
@@ -823,19 +850,38 @@ async function carregarDados(){
   const elP=document.getElementById('estoque-por-produto'), prods=Object.values(porProd).filter(p=>p.total>0.001);
   if(!prods.length){elP.innerHTML='<div style="font-size:13px;color:var(--mu);padding:.5rem 0">Nenhum produto em estoque.</div>';}
   else{elP.innerHTML=prods.map(p=>`<div class="item" style="margin-bottom:6px"><div class="item-body"><div class="item-nome">${p.nome}</div><div class="item-det">🏡 Sítio: ${KG(Math.max(0,p.sitio))} kg &nbsp;·&nbsp; 🏠 PP: ${KG(Math.max(0,p.casa))} kg &nbsp;·&nbsp; 👵 PP - Vó: ${KG(Math.max(0,p.vo))} kg${p.semLocal>0.001?` &nbsp;·&nbsp; Sem local: ${KG(p.semLocal)} kg`:''}</div></div><div class="item-val g">${KG(Math.max(0,p.total))} kg</div></div>`).join('');}
+
+  // ── POR LOCAL ────────────────────────────────────────────
+  const locaisConfig = [
+    {key:'Sítio',  emoji:'🏡', total:kgSitio},
+    {key:'PP',     emoji:'🏠', total:kgCasa},
+    {key:'PP - Vó',emoji:'👵', total:kgVo},
+  ];
+  const elL = document.getElementById('estoque-por-local');
+  const blocos = locaisConfig.map(loc => {
+    const kg = Math.max(0, loc.total);
+    const prodsDaqui = Object.values(porProd)
+      .map(p => {
+        const kgLocal = loc.key==='Sítio' ? p.sitio : loc.key==='PP' ? p.casa : p.vo;
+        return { nome: p.nome, kg: Math.max(0, kgLocal) };
+      })
+      .filter(p => p.kg > 0.001)
+      .sort((a,b) => b.kg - a.kg);
+    const linhas = prodsDaqui.length
+      ? prodsDaqui.map(p => `<div class="local-prod-row"><span class="local-prod-nome">${p.nome}</span><span class="local-prod-kg">${KG(p.kg)} kg</span></div>`).join('')
+      : `<div style="font-size:13px;color:var(--mu);padding:.5rem 0">Nenhum produto aqui.</div>`;
+    return `<div class="local-bloco">
+      <div class="local-bloco-hd">
+        <span class="local-bloco-nome">${loc.emoji} ${loc.key}</span>
+        <span class="local-bloco-total">${KG(kg)} kg</span>
+      </div>
+      <div class="local-bloco-body">${linhas}</div>
+    </div>`;
+  });
+  elL.innerHTML = blocos.join('');
+
   const bg=est<=0?'#333':est<=5?'#b92c2c':'var(--g)';
   const cp=document.getElementById('card-est'); cp.style.background=cp.style.borderColor=bg;
-  const el=document.getElementById('lista-movs'), recentes=movRecentes||[];
-  if(!recentes.length){el.innerHTML='<div class="vazio"><div class="vazio-i">📭</div>Nenhuma movimentação ainda.</div>';return;}
-  el.innerHTML=recentes.map(m=>{
-    const dt=new Date(m.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-    const isE=m.tipo==='entrada', isT=m.is_transferencia===true, isF=m.fiado===true;
-    const titulo=m.produto_nome||(isE?'Entrada de estoque':'Saída');
-    const nomeU=m.user_id?(_usuariosMap[m.user_id]||m.user_id.slice(0,8)):'';
-    const partes=[]; if(m.vendedor) partes.push('👤 '+m.vendedor); if(m.conta) partes.push('🏦 '+m.conta); if(m.cliente) partes.push('🛒 '+m.cliente); if(m.unidades) partes.push(m.unidades+' un.'); if(m.local) partes.push('📍 '+m.local); if(nomeU) partes.push('🔑 '+nomeU);
-    const sub=partes.join(' · ')||dt;
-    return `<div class="item" style="${isF&&!m.fiado_pago?'border-left:3px solid var(--r)':isT?'border-left:3px solid var(--b)':''}"><div class="item-icon ${isT?'':isE?'g':'r'}">${isT?'🔄':isE?'📥':'📤'}</div><div class="item-body"><div class="item-nome">${titulo}</div><div class="item-det">${sub}${isF?' · <span style="color:var(--r);font-weight:600">'+(m.fiado_pago?'✅ Pago':'🕐 FIADO — '+(m.fiado_nome||m.cliente||''))+'</span>':''}</div><div class="item-det" style="font-size:11px;opacity:.6">${dt}</div></div><div class="item-val ${isE?'g':'r'}">${isE?'+':'−'}${KG(m.qty_kg)} kg</div></div>`;
-  }).join('');
 }
 
 // ─── NAVEGAÇÃO ───────────────────────────────────────────────
@@ -945,9 +991,7 @@ function renderRelatorio(data){
   const NC_CONTAS=['Amostra','Uso próprio'];
   const entradas=data.filter(m=>m.tipo==='entrada'&&!m.is_transferencia);
   const saidas  =data.filter(m=>m.tipo==='saida'  &&!m.is_transferencia);
-  // Não comercial: saídas com conta = Amostra ou Uso próprio
   const saidasNC   =saidas.filter(m=>NC_CONTAS.includes(m.conta));
-  // Comercial: todas as saídas exceto não comerciais
   const saidasCom  =saidas.filter(m=>!NC_CONTAS.includes(m.conta));
   const fat     =saidasCom.filter(m=>!m.fiado||m.fiado_pago).reduce((a,m)=>a+(+m.preco_total||0),0);
   const aReceber=saidasCom.filter(m=>m.fiado&&!m.fiado_pago).reduce((a,m)=>a+(+m.preco_total||0),0);
@@ -973,7 +1017,6 @@ function renderRelatorio(data){
   const porConta={};
   saidasPagas.forEach(m=>{const c=m.conta||'Sem conta';if(!porConta[c]) porConta[c]={nome:c,kg:0,r:0};porConta[c].kg+=+m.qty_kg;porConta[c].r+=(+m.preco_total||0);});
   renderBarras('r-chart-conta',Object.values(porConta).sort((a,b)=>b.r-a.r),'r','',v=>R$(v)); show('r-bloco-conta');
-  // Gráfico não comercial por vendedor
   const porVendNC={};
   saidasNC.forEach(m=>{const v=m.vendedor||'Sem vendedor';if(!porVendNC[v]) porVendNC[v]={nome:v,kg:0};porVendNC[v].kg+=+m.qty_kg;});
   if(saidasNC.length){renderBarras('r-chart-nc',Object.values(porVendNC).sort((a,b)=>b.kg-a.kg),'kg','b',v=>KG(v)+' kg');show('r-bloco-nc');}
