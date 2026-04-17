@@ -84,6 +84,15 @@
     .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
     @keyframes spin{to{transform:rotate(360deg)}}
     .footer{text-align:center;color:var(--mu);font-size:12px;padding:2rem 1rem .5rem;opacity:.5}
+    /* ESTOQUE LOCAL CARDS */
+    .est-loc-card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--ra);padding:1rem .75rem;text-align:center;transition:border-color .15s}
+    .est-loc-emoji{font-size:22px;margin-bottom:4px}
+    .est-loc-nome{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);font-weight:600;margin-bottom:6px}
+    .est-loc-val{font-size:22px;font-weight:700;color:var(--tx);line-height:1}
+    .est-loc-un{font-size:11px;color:var(--mu);margin-top:2px}
+    .est-loc-card.maior{border-color:var(--g);background:var(--gbg)}
+    .est-loc-card.maior .est-loc-val{color:var(--gtx)}
+    .est-loc-card.vazio .est-loc-val{color:var(--mu);opacity:.5}
     .prod-prev{background:var(--gbg);border:1.5px solid var(--g);border-radius:var(--rs);padding:.7rem 1rem;margin-bottom:1rem;font-size:13px;color:var(--gtx)}
     .rel-atalhos{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem}
     .atalho{border:1px solid var(--bd);background:var(--sf);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--mu)}
@@ -154,22 +163,68 @@
   </div>
 
   <div class="tab on" id="tab-estoque">
-    <div class="cards">
-      <div class="card full" id="card-est"><div class="lbl">Estoque total</div><div class="val" id="v-est">—</div><div class="un">kg disponíveis</div></div>
-      <div class="card"><div class="lbl">🏡 Sítio</div><div class="val" id="v-sitio">—</div><div class="un">kg</div></div>
-      <div class="card"><div class="lbl">🏠 PP</div><div class="val" id="v-casa">—</div><div class="un">kg</div></div>
-      <div class="card"><div class="lbl">👵 PP - Vó</div><div class="val" id="v-vo">—</div><div class="un">kg</div></div>
-      <div class="card"><div class="lbl">Entradas hoje</div><div class="val" id="v-en">—</div><div class="un">kg</div></div>
-      <div class="card"><div class="lbl">Saídas hoje</div><div class="val" id="v-sa">—</div><div class="un">kg</div></div>
+    <!-- Card total -->
+    <div style="padding:1rem 1rem 0">
+      <div id="card-est" style="background:var(--g);border-radius:var(--ra);padding:1.1rem 1.25rem;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:rgba(255,255,255,.6);font-weight:600;margin-bottom:4px">Estoque total</div>
+          <div style="font-size:34px;font-weight:700;color:#fff;line-height:1" id="v-est">—</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.55);margin-top:3px">kg disponíveis</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:rgba(255,255,255,.55);margin-bottom:6px">Hoje</div>
+          <div style="display:flex;gap:14px">
+            <div style="text-align:center">
+              <div style="font-size:18px;font-weight:600;color:#fff" id="v-en">—</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.5)">entrada</div>
+            </div>
+            <div style="width:1px;background:rgba(255,255,255,.2)"></div>
+            <div style="text-align:center">
+              <div style="font-size:18px;font-weight:600;color:rgba(255,180,180,1)" id="v-sa">—</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.5)">saída</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="page-pad" style="padding-bottom:0">
-      <div class="sec-title" style="margin-bottom:8px">Estoque por produto</div>
+
+    <!-- Toggle visão -->
+    <div style="padding:.75rem 1rem 0;display:flex;gap:6px">
+      <button id="est-tab-local" onclick="estToggle('local')" style="flex:1;border:1.5px solid var(--g);border-radius:20px;padding:.45rem 0;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:var(--g);color:#fff;transition:all .15s">Por local</button>
+      <button id="est-tab-produto" onclick="estToggle('produto')" style="flex:1;border:1.5px solid var(--bd);border-radius:20px;padding:.45rem 0;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:var(--mu);transition:all .15s">Por produto</button>
+    </div>
+
+    <!-- Visão: por local -->
+    <div id="est-view-local" style="padding:.85rem 1rem 0">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="est-locais-grid">
+        <div class="est-loc-card" id="elc-sitio">
+          <div class="est-loc-emoji">🏡</div>
+          <div class="est-loc-nome">Sítio</div>
+          <div class="est-loc-val" id="v-sitio">—</div>
+          <div class="est-loc-un">kg</div>
+        </div>
+        <div class="est-loc-card" id="elc-pp">
+          <div class="est-loc-emoji">🏠</div>
+          <div class="est-loc-nome">PP</div>
+          <div class="est-loc-val" id="v-casa">—</div>
+          <div class="est-loc-un">kg</div>
+        </div>
+        <div class="est-loc-card" id="elc-vo">
+          <div class="est-loc-emoji">👵</div>
+          <div class="est-loc-nome">PP - Vó</div>
+          <div class="est-loc-val" id="v-vo">—</div>
+          <div class="est-loc-un">kg</div>
+        </div>
+      </div>
+      <!-- Barras por local -->
+      <div id="est-barras-local" style="margin-top:10px"></div>
+    </div>
+
+    <!-- Visão: por produto -->
+    <div id="est-view-produto" style="display:none;padding:.85rem 1rem 0">
       <div id="estoque-por-produto"></div>
     </div>
-    <div class="page-pad">
-      <div class="sec-title" style="margin-bottom:10px">Últimas movimentações</div>
-      <div id="lista-movs"><div class="vazio"><div class="vazio-i">⏳</div>Carregando...</div></div>
-    </div>
+
     <div class="footer">Dados sincronizados em tempo real</div>
   </div>
 
@@ -791,8 +846,8 @@ async function confirmarVenda(){
 async function carregarDados(){
   const{data:todosMovs,error:e1}=await SB.from('movimentacoes').select('tipo,qty_kg,local,is_transferencia,criado_em,produto_id,produto_nome').order('criado_em',{ascending:false});
   if(e1){console.error(e1);return;}
-  const{data:movRecentes,error:e2}=await SB.from('movimentacoes').select('*').order('criado_em',{ascending:false}).limit(10);
-  (movRecentes||[]).filter(m=>m.user_id).forEach(m=>{ if(!_usuariosMap[m.user_id]&&m.vendedor) _usuariosMap[m.user_id]=m.vendedor; });
+  // Popula mapa de usuários a partir dos movimentos já carregados
+  (todosMovs||[]).filter(m=>m.user_id&&m.vendedor).forEach(m=>{ if(!_usuariosMap[m.user_id]) _usuariosMap[m.user_id]=m.vendedor; });
   if(e2){console.error(e2);return;}
   const movs=todosMovs||[], hoje=NOW_ISO();
   const enHj=movs.filter(m=>m.tipo==='entrada'&&!m.is_transferencia&&m.criado_em?.startsWith(hoje)).reduce((a,m)=>a+ +m.qty_kg,0);
@@ -820,22 +875,53 @@ async function carregarDados(){
     else if(m.local==='PP - Vó') porProd[key].vo+=d;
     else porProd[key].semLocal+=d;
   });
+  // Estoque por produto
   const elP=document.getElementById('estoque-por-produto'), prods=Object.values(porProd).filter(p=>p.total>0.001);
   if(!prods.length){elP.innerHTML='<div style="font-size:13px;color:var(--mu);padding:.5rem 0">Nenhum produto em estoque.</div>';}
   else{elP.innerHTML=prods.map(p=>`<div class="item" style="margin-bottom:6px"><div class="item-body"><div class="item-nome">${p.nome}</div><div class="item-det">🏡 Sítio: ${KG(Math.max(0,p.sitio))} kg &nbsp;·&nbsp; 🏠 PP: ${KG(Math.max(0,p.casa))} kg &nbsp;·&nbsp; 👵 PP - Vó: ${KG(Math.max(0,p.vo))} kg${p.semLocal>0.001?` &nbsp;·&nbsp; Sem local: ${KG(p.semLocal)} kg`:''}</div></div><div class="item-val g">${KG(Math.max(0,p.total))} kg</div></div>`).join('');}
+  // Card total — cor dinâmica
   const bg=est<=0?'#333':est<=5?'#b92c2c':'var(--g)';
-  const cp=document.getElementById('card-est'); cp.style.background=cp.style.borderColor=bg;
-  const el=document.getElementById('lista-movs'), recentes=movRecentes||[];
-  if(!recentes.length){el.innerHTML='<div class="vazio"><div class="vazio-i">📭</div>Nenhuma movimentação ainda.</div>';return;}
-  el.innerHTML=recentes.map(m=>{
-    const dt=new Date(m.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-    const isE=m.tipo==='entrada', isT=m.is_transferencia===true, isF=m.fiado===true;
-    const titulo=m.produto_nome||(isE?'Entrada de estoque':'Saída');
-    const nomeU=m.user_id?(_usuariosMap[m.user_id]||m.user_id.slice(0,8)):'';
-    const partes=[]; if(m.vendedor) partes.push('👤 '+m.vendedor); if(m.conta) partes.push('🏦 '+m.conta); if(m.cliente) partes.push('🛒 '+m.cliente); if(m.unidades) partes.push(m.unidades+' un.'); if(m.local) partes.push('📍 '+m.local); if(nomeU) partes.push('🔑 '+nomeU);
-    const sub=partes.join(' · ')||dt;
-    return `<div class="item" style="${isF&&!m.fiado_pago?'border-left:3px solid var(--r)':isT?'border-left:3px solid var(--b)':''}"><div class="item-icon ${isT?'':isE?'g':'r'}">${isT?'🔄':isE?'📥':'📤'}</div><div class="item-body"><div class="item-nome">${titulo}</div><div class="item-det">${sub}${isF?' · <span style="color:var(--r);font-weight:600">'+(m.fiado_pago?'✅ Pago':'🕐 FIADO — '+(m.fiado_nome||m.cliente||''))+'</span>':''}</div><div class="item-det" style="font-size:11px;opacity:.6">${dt}</div></div><div class="item-val ${isE?'g':'r'}">${isE?'+':'−'}${KG(m.qty_kg)} kg</div></div>`;
-  }).join('');
+  const cp=document.getElementById('card-est'); cp.style.background=bg;
+  // Cards de local — destaque para o maior
+  const locaisVals=[{id:'elc-sitio',kg:Math.max(0,kgSitio)},{id:'elc-pp',kg:Math.max(0,kgCasa)},{id:'elc-vo',kg:Math.max(0,kgVo)}];
+  const maxLocal=Math.max(...locaisVals.map(l=>l.kg));
+  locaisVals.forEach(l=>{
+    const el=document.getElementById(l.id);
+    el.classList.remove('maior','vazio');
+    if(l.kg===0) el.classList.add('vazio');
+    else if(l.kg===maxLocal&&maxLocal>0) el.classList.add('maior');
+  });
+  // Barras por local com produtos detalhados
+  const elBarras=document.getElementById('est-barras-local');
+  const locaisConfig=[{key:'sitio',label:'🏡 Sítio',kg:Math.max(0,kgSitio)},{key:'casa',label:'🏠 PP',kg:Math.max(0,kgCasa)},{key:'vo',label:'👵 PP - Vó',kg:Math.max(0,kgVo)}];
+  const maxBarLocal=Math.max(...locaisConfig.map(l=>l.kg))||1;
+  elBarras.innerHTML=locaisConfig.filter(l=>l.kg>0).map(l=>{
+    const prodsDaqui=prods.filter(p=>p[l.key]>0.001).map(p=>`${p.nome}: ${KG(Math.max(0,p[l.key]))} kg`).join(' · ');
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:13px;font-weight:500;color:var(--tx)">${l.label}</span>
+        <span style="font-size:13px;font-weight:600;font-family:'DM Mono',monospace;color:var(--g2)">${KG(l.kg)} kg</span>
+      </div>
+      <div style="background:var(--bd);border-radius:4px;height:8px;overflow:hidden">
+        <div style="height:100%;border-radius:4px;background:var(--g);width:${(l.kg/maxBarLocal*100).toFixed(1)}%;transition:width .5s"></div>
+      </div>
+      ${prodsDaqui?`<div style="font-size:11px;color:var(--mu);margin-top:3px">${prodsDaqui}</div>`:''}
+    </div>`;
+  }).join('')||'<div style="font-size:13px;color:var(--mu)">Nenhum estoque por local.</div>';
+}
+
+// ─── ESTOQUE TOGGLE ──────────────────────────────────────────
+function estToggle(aba){
+  const isLocal=aba==='local';
+  document.getElementById('est-view-local').style.display=isLocal?'block':'none';
+  document.getElementById('est-view-produto').style.display=isLocal?'none':'block';
+  const btnL=document.getElementById('est-tab-local'), btnP=document.getElementById('est-tab-produto');
+  btnL.style.background=isLocal?'var(--g)':'transparent';
+  btnL.style.color=isLocal?'#fff':'var(--mu)';
+  btnL.style.borderColor=isLocal?'var(--g)':'var(--bd)';
+  btnP.style.background=isLocal?'transparent':'var(--g)';
+  btnP.style.color=isLocal?'var(--mu)':'#fff';
+  btnP.style.borderColor=isLocal?'var(--bd)':'var(--g)';
 }
 
 // ─── NAVEGAÇÃO ───────────────────────────────────────────────
