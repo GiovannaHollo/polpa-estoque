@@ -464,6 +464,7 @@ const LOCAIS = ['Sítio','PP','PP - Vó'];
 let _usuarioAtual = '';
 let produtos = [];
 let clientes = [];
+let _saldoCache = []; // cache da vw_saldo_estoque, atualizado em carregarDados
 
 // ─── TOGGLE VISUALIZAÇÃO ESTOQUE ────────────────────────────
 let _vizEstoque = 'produto'; // 'produto' ou 'local'
@@ -752,8 +753,10 @@ function renderLinhasVenda(){
 async function carregarDisponivelLinha(lid,prodId){
   const el=document.getElementById('disp-txt-'+lid); if(!el) return;
   const localSel=document.getElementById('vd-local')?.value||'';
-  const{data}=await SB.from('movimentacoes').select('tipo,qty_kg,local').eq('produto_id',prodId);
-  const movs=data||[], dispLocal=movs.filter(m=>(!localSel||m.local===localSel)).reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0);
+  // Usa o cache da vw_saldo_estoque — zero queries adicionais ao banco
+  const dispLocal=_saldoCache
+    .filter(s=>s.produto_id===prodId&&(!localSel||s.local===localSel))
+    .reduce((a,s)=>a+ +s.saldo_kg,0);
   const disp=Math.max(0,dispLocal), l=linhasVenda.find(x=>x.id===lid);
   if(l) l._disp=disp;
   const kgSol=l&&l.qtd?(produtos.find(p=>p.id===prodId)?.peso_g||0)*l.qtd/1000:0;
@@ -813,7 +816,7 @@ async function confirmarVenda(){
   for(const l of linhasValidas){
     const p=produtos.find(x=>x.id===l.prodId); if(!p) continue;
     const kgSol=(p.peso_g*l.qtd)/1000;
-    if(!reservas[p.id]){const{data:mc}=await SB.from('movimentacoes').select('tipo,qty_kg,local').eq('produto_id',p.id); const disp=Math.max(0,(mc||[]).filter(m=>m.local===localVenda).reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0)); reservas[p.id]={disp,reservado:0};}
+    if(!reservas[p.id]){const disp=Math.max(0,_saldoCache.filter(s=>s.produto_id===p.id&&s.local===localVenda).reduce((a,s)=>a+ +s.saldo_kg,0)); reservas[p.id]={disp,reservado:0};}
     const dispR=reservas[p.id].disp-reservas[p.id].reservado;
     if(kgSol>dispR+0.001){alert(`Estoque insuficiente em ${localVenda} para "${p.nome}"!\n\nDisponível: ${KG(dispR)} kg\nSolicitado: ${KG(kgSol)} kg`);return;}
     reservas[p.id].reservado+=kgSol;
@@ -836,20 +839,34 @@ async function confirmarVenda(){
 }
 
 // ─── DADOS / ESTOQUE ─────────────────────────────────────────
+// Usa views pré-calculadas no banco — o histórico nunca é baixado completo.
 async function carregarDados(){
-  const{data:todosMovs,error:e1}=await SB.from('movimentacoes').select('tipo,qty_kg,local,is_transferencia,criado_em,produto_id,produto_nome').order('criado_em',{ascending:false});
-  if(e1){console.error(e1);return;}
-  const{data:movRecentes,error:e2}=await SB.from('movimentacoes').select('user_id,vendedor').not('user_id','is',null).not('vendedor','is',null);
-  (movRecentes||[]).forEach(m=>{ if(!_usuariosMap[m.user_id]) _usuariosMap[m.user_id]=m.vendedor; });
-  if(e2){console.error(e2);return;}
-  const movs=todosMovs||[], hoje=NOW_ISO();
-  const enHj=movs.filter(m=>m.tipo==='entrada'&&!m.is_transferencia&&m.criado_em?.startsWith(hoje)).reduce((a,m)=>a+ +m.qty_kg,0);
-  const saHj=movs.filter(m=>m.tipo==='saida'  &&!m.is_transferencia&&m.criado_em?.startsWith(hoje)).reduce((a,m)=>a+ +m.qty_kg,0);
-  const kgSitio=movs.filter(m=>m.local==='Sítio').reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0);
-  const kgCasa =movs.filter(m=>m.local==='PP').reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0);
-  const kgVo   =movs.filter(m=>m.local==='PP - Vó').reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0);
-  const kgSL   =movs.filter(m=>!m.local).reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0);
+  // 3 queries leves em paralelo
+  const [r1, r2, r3] = await Promise.all([
+    SB.from('vw_saldo_estoque').select('produto_id,produto_nome,local,saldo_kg'),
+    SB.from('vw_movs_hoje').select('tipo,qty_kg'),
+    SB.from('vw_usuarios_vendedor').select('user_id,vendedor'),
+  ]);
+  if(r1.error){console.error(r1.error);return;}
+  if(r2.error){console.error(r2.error);}
+  if(r3.error){console.error(r3.error);}
+
+  // mapa usuário→vendedor (view já deduplica no banco)
+  (r3.data||[]).forEach(m=>{ if(!_usuariosMap[m.user_id]) _usuariosMap[m.user_id]=m.vendedor; });
+
+  // entradas e saídas de hoje (view já filtra por data no banco)
+  const movsHoje=r2.data||[];
+  const enHj=movsHoje.filter(m=>m.tipo==='entrada').reduce((a,m)=>a+ +m.qty_kg,0);
+  const saHj=movsHoje.filter(m=>m.tipo==='saida'  ).reduce((a,m)=>a+ +m.qty_kg,0);
+
+  // saldos por local — view já somou tudo no banco
+  const saldos=r1.data||[];
+  _saldoCache=saldos; // salva para uso em carregarDisponivelLinha sem nova query
+  const soma=(local)=>saldos.filter(s=>s.local===local).reduce((a,s)=>a+ +s.saldo_kg,0);
+  const kgSitio=soma('Sítio'), kgCasa=soma('PP'), kgVo=soma('PP - Vó');
+  const kgSL=saldos.filter(s=>!s.local).reduce((a,s)=>a+ +s.saldo_kg,0);
   const est=Math.max(0,kgSitio)+Math.max(0,kgCasa)+Math.max(0,kgVo)+Math.max(0,kgSL);
+
   document.getElementById('v-est').textContent  =KG(Math.max(0,est));
   document.getElementById('v-en').textContent   =KG(enHj);
   document.getElementById('v-sa').textContent   =KG(saHj);
@@ -857,18 +874,18 @@ async function carregarDados(){
   document.getElementById('v-casa').textContent =KG(Math.max(0,kgCasa));
   document.getElementById('v-vo').textContent   =KG(Math.max(0,kgVo));
 
-  // ── POR PRODUTO ──────────────────────────────────────────
+  // ── POR PRODUTO ─ agrupa os saldos já prontos da view ────
   const porProd={};
-  movs.forEach(m=>{
-    if(!m.produto_id&&!m.produto_nome) return;
-    const key=m.produto_id||m.produto_nome, nome=m.produto_nome||key;
+  saldos.forEach(s=>{
+    if(!s.produto_id&&!s.produto_nome) return;
+    const key=s.produto_id||s.produto_nome, nome=s.produto_nome||key;
     if(!porProd[key]) porProd[key]={nome,total:0,sitio:0,casa:0,vo:0,semLocal:0};
-    const d=m.tipo==='entrada'?+m.qty_kg:-m.qty_kg;
-    porProd[key].total+=d;
-    if(m.local==='Sítio') porProd[key].sitio+=d;
-    else if(m.local==='PP') porProd[key].casa+=d;
-    else if(m.local==='PP - Vó') porProd[key].vo+=d;
-    else porProd[key].semLocal+=d;
+    const v=+s.saldo_kg;
+    porProd[key].total+=v;
+    if(s.local==='Sítio')      porProd[key].sitio+=v;
+    else if(s.local==='PP')         porProd[key].casa+=v;
+    else if(s.local==='PP - Vó') porProd[key].vo+=v;
+    else                            porProd[key].semLocal+=v;
   });
   const elP=document.getElementById('estoque-por-produto'), prods=Object.values(porProd).filter(p=>p.total>0.001);
   if(!prods.length){elP.innerHTML='<div style="font-size:13px;color:var(--mu);padding:.5rem 0">Nenhum produto em estoque.</div>';}
@@ -931,15 +948,18 @@ function fecharSidebar(){ document.getElementById('sidebar').style.left='-280px'
 // ─── TRANSFERÊNCIA ───────────────────────────────────────────
 function onTrProduto(){ const id=document.getElementById('tr-produto').value, prev=document.getElementById('tr-prev'); if(!id){prev.style.display='none';document.getElementById('tr-kg').value='';return;} const p=produtos.find(x=>x.id===id); if(!p) return; prev.style.display='block'; prev.innerHTML=`<strong>${EMOJI[p.tipo]||'📦'} ${p.nome}</strong> · ${p.peso_g}g por unidade`; calcTr(); onTrOrigem(); }
 async function onTrOrigem(){ const id=document.getElementById('tr-produto').value; if(!id) return; const origem=document.getElementById('tr-origem').value; const opts = LOCAIS.filter(l=>l!==origem);
-  document.getElementById('tr-destino').value = opts[0]||'PP'; const{data}=await SB.from('movimentacoes').select('tipo,qty_kg,local').eq('produto_id',id); const kg=(data||[]).filter(m=>m.local===origem).reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0); const disp=Math.max(0,kg); const el=document.getElementById('tr-disp'); el.textContent=`Disponível em ${origem}: ${KG(disp)} kg`; el.style.color=disp>0?'var(--g2)':'var(--r)'; }
+  document.getElementById('tr-destino').value = opts[0]||'PP';
+  // Usa cache da vw_saldo_estoque — sem query ao banco
+  const kg=_saldoCache.filter(s=>s.produto_id===id&&s.local===origem).reduce((a,s)=>a+ +s.saldo_kg,0);
+  const disp=Math.max(0,kg); const el=document.getElementById('tr-disp'); el.textContent=`Disponível em ${origem}: ${KG(disp)} kg`; el.style.color=disp>0?'var(--g2)':'var(--r)'; }
 function calcTr(){ const id=document.getElementById('tr-produto').value, qtd=parseInt(document.getElementById('tr-qtd').value), p=produtos.find(x=>x.id===id); document.getElementById('tr-kg').value=(p&&qtd>0)?KG((p.peso_g*qtd)/1000)+' kg':''; }
 async function confirmarTransferencia(){
   const id=document.getElementById('tr-produto').value, qtd=parseInt(document.getElementById('tr-qtd').value), origem=document.getElementById('tr-origem').value, destino=document.getElementById('tr-destino').value;
   if(!id){alert('Selecione um produto.');return;} if(origem===destino){alert('Origem e destino não podem ser iguais.');return;} if(!qtd||qtd<=0){alert('Informe a quantidade.');return;}
   const p=produtos.find(x=>x.id===id); if(!p) return;
   const kg=(p.peso_g*qtd)/1000;
-  const{data}=await SB.from('movimentacoes').select('tipo,qty_kg,local').eq('produto_id',id);
-  const dispOrigem=Math.max(0,(data||[]).filter(m=>m.local===origem).reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0));
+  // Usa cache da vw_saldo_estoque — sem query ao banco
+  const dispOrigem=Math.max(0,_saldoCache.filter(s=>s.produto_id===id&&s.local===origem).reduce((a,s)=>a+ +s.saldo_kg,0));
   if(kg>dispOrigem+0.001){alert(`Estoque insuficiente em ${origem}!\nDisponível: ${KG(dispOrigem)} kg\nSolicitado: ${KG(kg)} kg`);return;}
   const btn=document.getElementById('btn-tr'); btn.innerHTML='<span class="spinner"></span><div><div>Salvando...</div></div>'; btn.disabled=true;
   const uid=(await SB.auth.getUser()).data?.user?.id||null, ts=agoraLocal();
@@ -998,18 +1018,33 @@ function atalho(tipo,btn){
   else if(tipo==='ano') de=`${hj.getFullYear()}-01-01`;
   document.getElementById('r-de').value=de; document.getElementById('r-ate').value=ate; gerarRelatorio();
 }
-async function gerarRelatorio(){
+let _relPagina=0;
+const _REL_POR_PAG=50;
+async function gerarRelatorio(pagina=0){
   const de=document.getElementById('r-de').value, ate=document.getElementById('r-ate').value; if(!de||!ate) return;
+  _relPagina=pagina;
   const btn=document.getElementById('btn-rel'); btn.innerHTML='<span class="spinner"></span><div><div>Carregando...</div></div>'; btn.disabled=true;
-  const{data,error}=await SB.from('movimentacoes').select('*').gte('criado_em',de+'T00:00:00').lte('criado_em',ate+'T23:59:59').order('criado_em',{ascending:false});
+  // Colunas explícitas — não baixa campos desnecessários
+  const cols='id,tipo,qty_kg,produto_nome,unidades,preco_total,vendedor,conta,cliente,local,user_id,fiado,fiado_pago,is_transferencia,criado_em,descricao';
+  // KPIs e gráficos: todos os registros do período (sem paginação)
+  const{data:todos,error:e1}=await SB.from('movimentacoes').select(cols)
+    .gte('criado_em',de+'T00:00:00').lte('criado_em',ate+'T23:59:59')
+    .order('criado_em',{ascending:false});
+  // Tabela: paginada (50 por página)
+  const from=pagina*_REL_POR_PAG, to=from+_REL_POR_PAG-1;
+  const{data:pag,error:e2,count}=await SB.from('movimentacoes').select(cols,{count:'exact'})
+    .gte('criado_em',de+'T00:00:00').lte('criado_em',ate+'T23:59:59')
+    .order('criado_em',{ascending:false}).range(from,to);
   btn.innerHTML='<span>📊</span><div><div>Gerar relatório</div><div class="btn-sub">Atualizar dados</div></div>'; btn.disabled=false;
-  if(error){toast('Erro: '+error.message);return;}
-  _dadosCache=data||[];
+  if(e1||e2){toast('Erro ao carregar relatório.');return;}
+  _dadosCache=todos||[];
   const{data:{user}}=await SB.auth.getUser();
   if(user){const prefixo=user.email?.split('@')[0]||'eu';_usuarioAtual=prefixo;_usuariosMap[user.id]=prefixo;}
-  renderRelatorio(_dadosCache);
+  renderRelatorio(_dadosCache, pag||[], count||0);
 }
-function renderRelatorio(data){
+function renderRelatorio(data, pagData, pagTotal){
+  // data = todos os registros do período (para KPIs e gráficos)
+  // pagData = página atual da tabela | pagTotal = total de registros
   const show=id=>document.getElementById(id).style.display='block';
   const NC_CONTAS=['Amostra','Uso próprio'];
   const entradas=data.filter(m=>m.tipo==='entrada'&&!m.is_transferencia);
@@ -1046,14 +1081,31 @@ function renderRelatorio(data){
   else{document.getElementById('r-bloco-nc').style.display='none';}
   const tbody=document.getElementById('r-tbody');
   const fmtDt=s=>new Date(s).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
-  if(!data.length){tbody.innerHTML='<tr><td colspan="9" class="sem-dados">Nenhuma movimentação no período.</td></tr>';}
-  else{tbody.innerHTML=data.map(m=>{
+  // tabela usa os dados paginados
+  const tabelaDados = pagData && pagData.length ? pagData : data.slice(0,_REL_POR_PAG);
+  const tabelaTotal = pagTotal || data.length;
+  if(!tabelaDados.length){tbody.innerHTML='<tr><td colspan="9" class="sem-dados">Nenhuma movimentação no período.</td></tr>';}
+  else{tbody.innerHTML=tabelaDados.map(m=>{
     const nu=(m.user_id&&_usuariosMap[m.user_id])?_usuariosMap[m.user_id]:'—';
     const tl=m.is_transferencia?'🔄 Transf.':m.tipo==='entrada'?'📥 Entrada':'📤 Venda';
     const ft=m.fiado&&!m.fiado_pago?'<br><span style="color:var(--r);font-size:10px;font-weight:600">FIADO</span>':m.fiado&&m.fiado_pago?'<br><span style="color:var(--g2);font-size:10px;font-weight:600">✅ PAGO</span>':'';
     return `<tr><td class="td-mu">${fmtDt(m.criado_em)}</td><td>${tl}</td><td>${m.produto_nome||m.descricao||'—'}</td><td>${m.vendedor||'—'}</td><td>${m.conta||'—'}</td><td>${m.local||'—'}</td><td>${m.cliente||'—'}</td><td class="td-mu">${nu}</td><td class="td-r">${m.tipo==='entrada'?'+':'−'}${KG(m.qty_kg)}</td><td class="td-r">${m.preco_total?R$(m.preco_total):'—'}${ft}</td></tr>`;
   }).join('');}
   show('r-bloco-tab');
+  // Paginação
+  const totalPags=Math.ceil(tabelaTotal/_REL_POR_PAG);
+  let pagHtml='';
+  if(totalPags>1){
+    pagHtml=`<div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:1rem 0;font-size:13px;color:var(--mu)">`;
+    if(_relPagina>0) pagHtml+=`<button onclick="gerarRelatorio(${_relPagina-1})" style="border:1px solid var(--bd);background:var(--sf);border-radius:var(--rs);padding:5px 14px;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--tx)">← Anterior</button>`;
+    pagHtml+=`<span>Página ${_relPagina+1} de ${totalPags} &nbsp;·&nbsp; ${tabelaTotal} registros</span>`;
+    if(_relPagina<totalPags-1) pagHtml+=`<button onclick="gerarRelatorio(${_relPagina+1})" style="border:1px solid var(--bd);background:var(--sf);border-radius:var(--rs);padding:5px 14px;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--tx)">Próxima →</button>`;
+    pagHtml+='</div>';
+  }
+  const blocoTab=document.getElementById('r-bloco-tab');
+  let pagEl=document.getElementById('r-paginacao');
+  if(!pagEl){pagEl=document.createElement('div');pagEl.id='r-paginacao';blocoTab.appendChild(pagEl);}
+  pagEl.innerHTML=pagHtml;
 }
 function renderBarras(cid,itens,campo,cor,fmt){ const el=document.getElementById(cid); if(!itens.length){el.innerHTML='<div class="sem-dados">Nenhum dado no período.</div>';return;} const max=Math.max(...itens.map(i=>i[campo]))||1; el.innerHTML=itens.map(i=>`<div class="bar-wrap"><div class="bar-label" title="${i.nome}">${i.nome}</div><div class="bar-track"><div class="bar-fill ${cor}" style="width:${(i[campo]/max*100).toFixed(1)}%"></div></div><div class="bar-val">${fmt(i[campo])}</div></div>`).join(''); }
 function exportarCSV(){
