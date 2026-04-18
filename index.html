@@ -170,7 +170,7 @@
   <div class="tab on" id="tab-estoque">
     <div class="cards">
       <div class="card full" id="card-est"><div class="lbl">Estoque total</div><div class="val" id="v-est">—</div><div class="un">kg disponíveis</div></div>
-      <div class="card"><div class="lbl">🏕️ Sítio</div><div class="val" id="v-sitio">—</div><div class="un">kg</div></div>
+      <div class="card"><div class="lbl">🏡 Sítio</div><div class="val" id="v-sitio">—</div><div class="un">kg</div></div>
       <div class="card"><div class="lbl">🏠 PP</div><div class="val" id="v-casa">—</div><div class="un">kg</div></div>
       <div class="card"><div class="lbl">👵 PP - Vó</div><div class="val" id="v-vo">—</div><div class="un">kg</div></div>
       <div class="card"><div class="lbl">Entradas hoje</div><div class="val" id="v-en">—</div><div class="un">kg</div></div>
@@ -230,7 +230,7 @@
         <select id="vd-vendedor"><option value="">— selecione —</option><option value="Adão">Adão</option><option value="Silvana">Silvana</option><option value="Vitor">Vitor</option></select>
       </div>
       <div class="f"><label>Conta que recebeu</label>
-        <select id="vd-conta">
+        <select id="vd-conta" onchange="onVdConta()">
           <option value="">— selecione —</option>
           <option value="Adão Dinheiro">Adão Dinheiro</option><option value="Adão Banco">Adão Banco</option>
           <option value="Vitor Dinheiro">Vitor Dinheiro</option><option value="Vitor Banco">Vitor Banco</option>
@@ -764,6 +764,13 @@ function onVdPreco(lid){
   const inp=document.querySelector(`.vd-preco-in[data-lid="${lid}"]`), l=linhasVenda.find(x=>x.id===lid); if(!l) return;
   const val=inp.value.replace(',','.'); l.preco=val===''?null:parseFloat(val);
   inp.style.borderColor=(l.preco===null)?'var(--r)':''; atualizarCalcLinha(lid); atualizarTotalVenda();
+}
+const NC_CONTAS_VENDA=['Amostra','Uso próprio'];
+function onVdConta(){
+  const conta=document.getElementById('vd-conta').value;
+  if(!NC_CONTAS_VENDA.includes(conta)) return;
+  linhasVenda.forEach(l=>{ l.preco=0; });
+  renderLinhasVenda();
 }
 function atualizarCalcLinha(lid){
   const l=linhasVenda.find(x=>x.id===lid); if(!l||!l.prodId) return;
