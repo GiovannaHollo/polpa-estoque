@@ -407,7 +407,7 @@
 </div>
 
 <!-- MODAL: CLIENTE (novo / editar) -->
-<div class="ov" id="ov-cliente" onclick="fecharOvSeFora(event,'ov-cliente')">
+<div class="ov" id="ov-cliente" onclick="fecharOvSeFora(event,'ov-cliente',true)">
   <div class="modal">
     <div class="modal-hd"><h2 id="cli-titulo">👥 Novo cliente</h2><button class="btn-x" onclick="fechar('ov-cliente')">✕</button></div>
     <div class="f">
@@ -422,7 +422,7 @@
     <div class="f"><label>Observação</label><input type="text" id="cli-obs-campo" placeholder="Ex: Prefere sachês"/></div>
     <input type="hidden" id="cli-id"/>
     <div class="modal-btns">
-      <button class="btn-cancel" onclick="fechar('ov-cliente')">Cancelar</button>
+      <button class="btn-cancel" onclick="cancelarModalCliente()">Cancelar</button>
       <button class="btn-ok-b" id="btn-salvar-cli" onclick="salvarCliente()">Salvar cliente</button>
     </div>
   </div>
@@ -465,6 +465,7 @@ let _usuarioAtual = '';
 let produtos = [];
 let clientes = [];
 let _saldoCache = []; // cache da vw_saldo_estoque, atualizado em carregarDados
+let _clientesCarregados = false; // evita recarregar clientes desnecessariamente
 
 // ─── TOGGLE VISUALIZAÇÃO ESTOQUE ────────────────────────────
 let _vizEstoque = 'produto'; // 'produto' ou 'local'
@@ -525,10 +526,12 @@ function preencherSelectsEntrada(){
 }
 
 // ─── CLIENTES ────────────────────────────────────────────────
-async function carregarClientes(){
+async function carregarClientes(forcar=false){
+  if(!forcar && _clientesCarregados && clientes.length>0){renderListaClientes(clientes);return;}
   const{data,error}=await SB.from('clientes').select('*').eq('ativo',true).order('nome');
   if(error){console.error('Erro ao carregar clientes:',error);clientes=[];return;}
   clientes=data||[];
+  _clientesCarregados=true;
   renderListaClientes(clientes);
 }
 
@@ -620,7 +623,8 @@ async function salvarCliente(){
   btn.textContent='Salvar cliente'; btn.disabled=false;
   if(error){alert('Erro ao salvar: '+error.message);return;}
   fechar('ov-cliente');
-  await carregarClientes();
+  _clientesCarregados=false;
+  await carregarClientes(true);
   toast(editId?'✓ Cliente atualizado!':'✓ Cliente cadastrado!');
   if(!editId && _cadastrandoParaVenda){
     _cadastrandoParaVenda = false;
@@ -633,7 +637,8 @@ async function excluirCliente(id,nome){
   if(!confirm(`Remover o cliente "${nome}"?\n\nEle não aparecerá mais no app, mas o histórico de vendas será mantido.`)) return;
   const{error}=await SB.from('clientes').update({ativo:false}).eq('id',id);
   if(error){alert('Erro: '+error.message);return;}
-  await carregarClientes();
+  _clientesCarregados=false;
+  await carregarClientes(true);
   toast('Cliente removido.');
 }
 
@@ -812,25 +817,38 @@ async function confirmarVenda(){
   if(!clienteNome){alert('Informe o cliente.');return;}
   if(!isFiado&&!conta){alert('Informe a conta que recebeu.');return;}
   for(const l of linhasValidas){ const p=produtos.find(x=>x.id===l.prodId); if(l.preco===null||l.preco===undefined||isNaN(l.preco)){alert(`Informe o preço para "${p?p.nome:'produto'}".\n\nSe for doação, coloque 0.`);return;} }
+  // Verificação de estoque em tempo real (evita conflito entre usuários)
+  const idsNecessarios=[...new Set(linhasValidas.map(l=>l.prodId))];
+  const{data:saldoReal,error:eSaldo}=await SB.from('vw_saldo_estoque')
+    .select('produto_id,local,saldo_kg')
+    .in('produto_id',idsNecessarios)
+    .eq('local',localVenda);
+  if(eSaldo){alert('Erro ao verificar estoque: '+eSaldo.message);return;}
   const reservas={};
   for(const l of linhasValidas){
     const p=produtos.find(x=>x.id===l.prodId); if(!p) continue;
     const kgSol=(p.peso_g*l.qtd)/1000;
-    if(!reservas[p.id]){const disp=Math.max(0,_saldoCache.filter(s=>s.produto_id===p.id&&s.local===localVenda).reduce((a,s)=>a+ +s.saldo_kg,0)); reservas[p.id]={disp,reservado:0};}
+    if(!reservas[p.id]){
+      const disp=Math.max(0,(saldoReal||[]).filter(s=>s.produto_id===p.id).reduce((a,s)=>a+ +s.saldo_kg,0));
+      reservas[p.id]={disp,reservado:0};
+    }
     const dispR=reservas[p.id].disp-reservas[p.id].reservado;
     if(kgSol>dispR+0.001){alert(`Estoque insuficiente em ${localVenda} para "${p.nome}"!\n\nDisponível: ${KG(dispR)} kg\nSolicitado: ${KG(kgSol)} kg`);return;}
     reservas[p.id].reservado+=kgSol;
   }
   const btn=document.getElementById('btn-vd'); btn.innerHTML='<span class="spinner"></span>Salvando...'; btn.disabled=true;
   const uid=(await SB.auth.getUser()).data?.user?.id||null, tsVenda=agoraLocal();
-  try{
-    for(const l of linhasValidas){
-      const p=produtos.find(x=>x.id===l.prodId); if(!p) continue;
-      const qty_kg=(p.peso_g*l.qtd)/1000, preco_total=(l.preco||0)*l.qtd;
-      const{error}=await SB.from('movimentacoes').insert({tipo:'saida',qty_kg,produto_id:p.id,produto_nome:p.nome,unidades:l.qtd,preco_total,vendedor:vendedor||null,conta:isFiado?null:(conta||null),cliente:clienteNome||null,cliente_id:_clienteSelecionadoId||null,descricao:obs||null,user_id:uid,local:localVenda,fiado:isFiado,fiado_nome:isFiado?clienteNome||null:null,fiado_pago:isFiado?false:null,criado_em:tsVenda});
-      if(error) throw error;
-    }
-  }catch(e){alert('Erro ao salvar: '+e.message); btn.innerHTML='<span>📤</span><div><div>Confirmar venda</div><div class="btn-sub">Desconta do estoque</div></div>'; btn.disabled=false; return;}
+  // Inserção atômica — todos os produtos em uma única operação (tudo ou nada)
+  const registros=linhasValidas.map(l=>{
+    const p=produtos.find(x=>x.id===l.prodId);
+    const qty_kg=(p.peso_g*l.qtd)/1000, preco_total=(l.preco||0)*l.qtd;
+    return {tipo:'saida',qty_kg,produto_id:p.id,produto_nome:p.nome,unidades:l.qtd,preco_total,
+      vendedor:vendedor||null,conta:isFiado?null:(conta||null),cliente:clienteNome||null,
+      cliente_id:_clienteSelecionadoId||null,descricao:obs||null,user_id:uid,local:localVenda,
+      fiado:isFiado,fiado_nome:isFiado?clienteNome||null:null,fiado_pago:isFiado?false:null,criado_em:tsVenda};
+  });
+  const{error:errVenda}=await SB.from('movimentacoes').insert(registros);
+  if(errVenda){alert('Erro ao salvar: '+errVenda.message); btn.innerHTML='<span>📤</span><div><div>Confirmar venda</div><div class="btn-sub">Desconta do estoque</div></div>'; btn.disabled=false; return;}
   resetVenda(); ['vd-cliente','vd-obs'].forEach(id=>document.getElementById(id).value='');
   iniciarLinhasVenda(); btn.innerHTML='<span>📤</span><div><div>Confirmar venda</div><div class="btn-sub">Desconta do estoque</div></div>'; btn.disabled=false;
   await carregarDados(); irPara('estoque');
@@ -958,8 +976,11 @@ async function confirmarTransferencia(){
   if(!id){alert('Selecione um produto.');return;} if(origem===destino){alert('Origem e destino não podem ser iguais.');return;} if(!qtd||qtd<=0){alert('Informe a quantidade.');return;}
   const p=produtos.find(x=>x.id===id); if(!p) return;
   const kg=(p.peso_g*qtd)/1000;
-  // Usa cache da vw_saldo_estoque — sem query ao banco
-  const dispOrigem=Math.max(0,_saldoCache.filter(s=>s.produto_id===id&&s.local===origem).reduce((a,s)=>a+ +s.saldo_kg,0));
+  // Verificação em tempo real — evita conflito entre usuários simultâneos
+  const{data:saldoTr,error:eSaldoTr}=await SB.from('vw_saldo_estoque')
+    .select('saldo_kg').eq('produto_id',id).eq('local',origem);
+  if(eSaldoTr){alert('Erro ao verificar estoque: '+eSaldoTr.message);return;}
+  const dispOrigem=Math.max(0,(saldoTr||[]).reduce((a,s)=>a+ +s.saldo_kg,0));
   if(kg>dispOrigem+0.001){alert(`Estoque insuficiente em ${origem}!\nDisponível: ${KG(dispOrigem)} kg\nSolicitado: ${KG(kg)} kg`);return;}
   const btn=document.getElementById('btn-tr'); btn.innerHTML='<span class="spinner"></span><div><div>Salvando...</div></div>'; btn.disabled=true;
   const uid=(await SB.auth.getUser()).data?.user?.id||null, ts=agoraLocal();
@@ -1020,27 +1041,33 @@ function atalho(tipo,btn){
 }
 let _relPagina=0;
 const _REL_POR_PAG=50;
+// Cache de KPIs/gráficos: só rebuscado quando muda o período, não ao virar página
+let _relCache={de:'',ate:'',dados:[]};
 async function gerarRelatorio(pagina=0){
   const de=document.getElementById('r-de').value, ate=document.getElementById('r-ate').value; if(!de||!ate) return;
   _relPagina=pagina;
   const btn=document.getElementById('btn-rel'); btn.innerHTML='<span class="spinner"></span><div><div>Carregando...</div></div>'; btn.disabled=true;
-  // Colunas explícitas — não baixa campos desnecessários
   const cols='id,tipo,qty_kg,produto_nome,unidades,preco_total,vendedor,conta,cliente,local,user_id,fiado,fiado_pago,is_transferencia,criado_em,descricao';
-  // KPIs e gráficos: todos os registros do período (sem paginação)
-  const{data:todos,error:e1}=await SB.from('movimentacoes').select(cols)
-    .gte('criado_em',de+'T00:00:00').lte('criado_em',ate+'T23:59:59')
-    .order('criado_em',{ascending:false});
-  // Tabela: paginada (50 por página)
+  const periodoMudou=(de!==_relCache.de||ate!==_relCache.ate);
+  // Só busca todos os dados se o período mudou (KPIs e gráficos)
+  if(periodoMudou){
+    const{data:todos,error:e1}=await SB.from('movimentacoes').select(cols)
+      .gte('criado_em',de+'T00:00:00').lte('criado_em',ate+'T23:59:59')
+      .order('criado_em',{ascending:false});
+    if(e1){btn.innerHTML='<span>📊</span><div><div>Gerar relatório</div><div class="btn-sub">Atualizar dados</div></div>'; btn.disabled=false; toast('Erro ao carregar relatório.');return;}
+    _relCache={de,ate,dados:todos||[]};
+    _dadosCache=todos||[];
+  }
+  // Sempre busca só a página atual da tabela
   const from=pagina*_REL_POR_PAG, to=from+_REL_POR_PAG-1;
   const{data:pag,error:e2,count}=await SB.from('movimentacoes').select(cols,{count:'exact'})
     .gte('criado_em',de+'T00:00:00').lte('criado_em',ate+'T23:59:59')
     .order('criado_em',{ascending:false}).range(from,to);
   btn.innerHTML='<span>📊</span><div><div>Gerar relatório</div><div class="btn-sub">Atualizar dados</div></div>'; btn.disabled=false;
-  if(e1||e2){toast('Erro ao carregar relatório.');return;}
-  _dadosCache=todos||[];
+  if(e2){toast('Erro ao carregar relatório.');return;}
   const{data:{user}}=await SB.auth.getUser();
   if(user){const prefixo=user.email?.split('@')[0]||'eu';_usuarioAtual=prefixo;_usuariosMap[user.id]=prefixo;}
-  renderRelatorio(_dadosCache, pag||[], count||0);
+  renderRelatorio(_relCache.dados, pag||[], count||0);
 }
 function renderRelatorio(data, pagData, pagTotal){
   // data = todos os registros do período (para KPIs e gráficos)
@@ -1120,7 +1147,8 @@ function exportarCSV(){
 // ─── UTILITÁRIOS ─────────────────────────────────────────────
 function abrir(id){document.getElementById(id).classList.add('on');}
 function fechar(id){document.getElementById(id).classList.remove('on');}
-function fecharOvSeFora(e,id){if(e.target===document.getElementById(id)) fechar(id);}
+function fecharOvSeFora(e,id,resetCadastro=false){if(e.target===document.getElementById(id)){fechar(id);if(resetCadastro)_cadastrandoParaVenda=false;}}
+function cancelarModalCliente(){fechar('ov-cliente');_cadastrandoParaVenda=false;}
 document.addEventListener('keydown',e=>{if(e.key==='Escape') document.querySelectorAll('.ov.on').forEach(o=>o.classList.remove('on'));});
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');setTimeout(()=>el.classList.remove('on'),2500);}
 </script>
