@@ -768,8 +768,14 @@ function onVdPreco(lid){
 const NC_CONTAS_VENDA=['Amostra','Uso próprio'];
 function onVdConta(){
   const conta=document.getElementById('vd-conta').value;
-  if(!NC_CONTAS_VENDA.includes(conta)) return;
-  linhasVenda.forEach(l=>{ l.preco=0; });
+  if(NC_CONTAS_VENDA.includes(conta)){
+    linhasVenda.forEach(l=>{ l.preco=0; });
+  } else {
+    linhasVenda.forEach(l=>{
+      const p=produtos.find(x=>x.id===l.prodId);
+      if(p&&p.preco_sug) l.preco=p.preco_sug;
+    });
+  }
   renderLinhasVenda();
 }
 function atualizarCalcLinha(lid){
