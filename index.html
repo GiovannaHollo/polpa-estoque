@@ -395,7 +395,6 @@
         <option value="">— selecione —</option>
         <option value="Adão Dinheiro">Adão Dinheiro</option><option value="Adão Banco">Adão Banco</option>
         <option value="Vitor Dinheiro">Vitor Dinheiro</option><option value="Vitor Banco">Vitor Banco</option>
-        <option value="Amostra">Amostra</option><option value="Uso próprio">Uso próprio</option>
       </select>
     </div>
     <div class="f"><label>Observação (opcional)</label><input type="text" id="pago-obs" placeholder="Ex: Pago em dinheiro"/></div>
@@ -510,7 +509,7 @@ function abrirEditarProduto(id){ const p=produtos.find(x=>x.id===id); if(!p) ret
 async function salvarProduto(){
   const nome=document.getElementById('p-nome').value.trim(), tipo=document.getElementById('p-tipo').value, peso_g=parseInt(document.getElementById('p-peso').value), preco_sug=parseFloat(document.getElementById('p-preco').value.replace(',','.'))||0, editId=document.getElementById('p-id').value;
   if(!nome){alert('Informe o nome do produto.');return;} if(!peso_g||peso_g<=0){alert('Informe o peso por unidade (em gramas).');return;}
-  const uid=(await SB.auth.getUser()).data?.user?.id||null, payload={nome,tipo,peso_g,preco_sug,ativo:true,user_id:uid};
+  const payload={nome,tipo,peso_g,preco_sug,ativo:true};
   let error; if(editId){({error}=await SB.from('produtos').update(payload).eq('id',editId));}else{({error}=await SB.from('produtos').insert(payload));}
   if(error){alert('Erro: '+error.message);return;} fechar('ov-produto'); await carregarProdutos(); preencherSelectsEntrada(); toast(editId?'✓ Produto atualizado!':'✓ Produto cadastrado!');
 }
@@ -622,6 +621,11 @@ async function salvarCliente(){
   fechar('ov-cliente');
   await carregarClientes();
   toast(editId?'✓ Cliente atualizado!':'✓ Cliente cadastrado!');
+  if(!editId && _cadastrandoParaVenda){
+    _cadastrandoParaVenda = false;
+    const novoCliente = clientes.find(c=>c.nome===nome);
+    if(novoCliente) selecionarCliente(novoCliente.id, novoCliente.nome);
+  }
 }
 
 async function excluirCliente(id,nome){
@@ -637,8 +641,12 @@ let _clienteSelecionadoId = null;
 let _acIdx = -1;
 
 function onClienteInput(val){
-  _clienteSelecionadoId=null;
-  document.getElementById('cli-selecionado').style.display='none';
+  // Só perde o vínculo se o texto mudou em relação ao cliente selecionado
+  const nomeAtual=_clienteSelecionadoId?document.getElementById('cli-sel-nome').textContent:'';
+  if(val !== nomeAtual){
+    _clienteSelecionadoId=null;
+    document.getElementById('cli-selecionado').style.display='none';
+  }
   const lista=document.getElementById('ac-lista');
   const term=(val||'').toLowerCase().trim();
   if(!term){lista.classList.remove('vis');lista.innerHTML='';return;}
@@ -675,7 +683,9 @@ function limparClienteSelecionado(){
   document.getElementById('cli-selecionado').style.display='none';
 }
 
+let _cadastrandoParaVenda = false;
 async function novoClienteRapido(nome){
+  _cadastrandoParaVenda = true;
   document.getElementById('ac-lista').classList.remove('vis');
   abrirNovoCliente(nome);
 }
@@ -829,8 +839,8 @@ async function confirmarVenda(){
 async function carregarDados(){
   const{data:todosMovs,error:e1}=await SB.from('movimentacoes').select('tipo,qty_kg,local,is_transferencia,criado_em,produto_id,produto_nome').order('criado_em',{ascending:false});
   if(e1){console.error(e1);return;}
-  const{data:movRecentes,error:e2}=await SB.from('movimentacoes').select('*').order('criado_em',{ascending:false}).limit(10);
-  (movRecentes||[]).filter(m=>m.user_id).forEach(m=>{ if(!_usuariosMap[m.user_id]&&m.vendedor) _usuariosMap[m.user_id]=m.vendedor; });
+  const{data:movRecentes,error:e2}=await SB.from('movimentacoes').select('user_id,vendedor').not('user_id','is',null).not('vendedor','is',null);
+  (movRecentes||[]).forEach(m=>{ if(!_usuariosMap[m.user_id]) _usuariosMap[m.user_id]=m.vendedor; });
   if(e2){console.error(e2);return;}
   const movs=todosMovs||[], hoje=NOW_ISO();
   const enHj=movs.filter(m=>m.tipo==='entrada'&&!m.is_transferencia&&m.criado_em?.startsWith(hoje)).reduce((a,m)=>a+ +m.qty_kg,0);
@@ -839,7 +849,7 @@ async function carregarDados(){
   const kgCasa =movs.filter(m=>m.local==='PP').reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0);
   const kgVo   =movs.filter(m=>m.local==='PP - Vó').reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0);
   const kgSL   =movs.filter(m=>!m.local).reduce((a,m)=>a+(m.tipo==='entrada'?+m.qty_kg:-m.qty_kg),0);
-  const est=kgSitio+kgCasa+kgVo+kgSL;
+  const est=Math.max(0,kgSitio)+Math.max(0,kgCasa)+Math.max(0,kgVo)+Math.max(0,kgSL);
   document.getElementById('v-est').textContent  =KG(Math.max(0,est));
   document.getElementById('v-en').textContent   =KG(enHj);
   document.getElementById('v-sa').textContent   =KG(saHj);
