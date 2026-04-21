@@ -459,7 +459,7 @@ const LABEL = {pote:'Pote',sache:'Sachê',pacote:'Pacote',outro:'Outro'};
 const R$ = n => (+n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const KG = n => (+n||0).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
 const NOW_ISO = () => { const d=new Date(),p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; };
-const agoraLocal = () => { const d=new Date(),p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+const agoraLocal = () => { const d=new Date(),off=-d.getTimezoneOffset(),sign=off>=0?'+':'-',ph=String(Math.floor(Math.abs(off)/60)).padStart(2,'0'),pm=String(Math.abs(off)%60).padStart(2,'0'),p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}${sign}${ph}:${pm}`; };
 const LOCAIS = ['Sítio','PP','PP - Vó'];
 let _usuarioAtual = '';
 let produtos = [];
