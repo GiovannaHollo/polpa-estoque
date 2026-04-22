@@ -1049,7 +1049,7 @@ async function gerarRelatorio(pagina=0){
   const periodoMudou=(de!==_relCache.de||ate!==_relCache.ate);
   if(periodoMudou){
     const{data:todos,error:e1}=await SB.from('movimentacoes').select(cols)
-      .gte('criado_em',de+'T00:00:00').lte('criado_em',ate+'T23:59:59')
+      .gte('criado_em', de + 'T00:00:00-03:00').lte('criado_em', ate + 'T23:59:59-03:00')
       .order('criado_em',{ascending:false});
     if(e1){btn.innerHTML='<span>📊</span><div><div>Gerar relatório</div><div class="btn-sub">Atualizar dados</div></div>'; btn.disabled=false; toast('Erro ao carregar relatório.');return;}
     _relCache={de,ate,dados:todos||[]};
@@ -1057,7 +1057,7 @@ async function gerarRelatorio(pagina=0){
   }
   const from=pagina*_REL_POR_PAG, to=from+_REL_POR_PAG-1;
   const{data:pag,error:e2,count}=await SB.from('movimentacoes').select(cols,{count:'exact'})
-    .gte('criado_em',de+'T00:00:00').lte('criado_em',ate+'T23:59:59')
+    .gte('criado_em', de + 'T00:00:00-03:00').lte('criado_em', ate + 'T23:59:59-03:00')
     .order('criado_em',{ascending:false}).range(from,to);
   btn.innerHTML='<span>📊</span><div><div>Gerar relatório</div><div class="btn-sub">Atualizar dados</div></div>'; btn.disabled=false;
   if(e2){toast('Erro ao carregar relatório.');return;}
