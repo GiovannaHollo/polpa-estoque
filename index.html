@@ -851,16 +851,11 @@ const NC_CONTAS_VENDA=APP_CONFIG.contasNaoComerciais;
 function onVdConta(){
   const conta=document.getElementById('vd-conta').value;
   if(NC_CONTAS_VENDA.includes(conta)){
-    // Guarda o preço atual antes de zerar, para restaurar se trocar de conta
-    linhasVenda.forEach(l=>{ l._precoAntes=l.preco; l.preco=0; });
+    linhasVenda.forEach(l=>{ l.preco=0; });
   } else {
     linhasVenda.forEach(l=>{
       const p=produtos.find(x=>x.id===l.prodId);
-      // Se vinha de Amostra/Uso próprio, restaura o preço anterior
-      // Se nunca foi tocado (null), coloca o preço sugerido
-      // Se o usuário já digitou um valor, não toca
-      if(l._precoAntes!=null){ l.preco=l._precoAntes; l._precoAntes=null; }
-      else if(l.preco===null&&p&&p.preco_sug){ l.preco=p.preco_sug; }
+      if(p&&p.preco_sug) l.preco=p.preco_sug;
     });
   }
   renderLinhasVenda();
