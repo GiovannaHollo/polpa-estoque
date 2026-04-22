@@ -387,8 +387,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
       const { data, error } = await sb
         .from('movimentacoes')
         .select('*')
-        .gte('criado_em', de + 'T00:00:00')
-        .lte('criado_em', ate + 'T23:59:59')
+        .gte('criado_em', de + 'T00:00:00-03:00')
+        .lte('criado_em', ate + 'T23:59:59-03:00')
         .order('criado_em', { ascending: false });
       if (error) throw error;
       dadosCache = data;
