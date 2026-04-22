@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#1e5c1e" />
-  <title>Polpa de Maracujá</title>
+  <meta name="theme-color" id="meta-theme-color" content="#1e5c1e" />
+  <title id="app-title">Polpa de Maracujá</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
   <script>window.__env={SUPABASE_URL:"__SUPABASE_URL__",SUPABASE_ANON_KEY:"__SUPABASE_ANON_KEY__"};</script>
   <style>
     :root{--g:#1e5c1e;--g2:#2d7a2d;--gbg:#e8f5e8;--gtx:#154415;--r:#b92c2c;--rbg:#fdeaea;--rtx:#7a1a1a;--b:#1a4fa0;--bbg:#e8f0fc;--bg:#f7f5f0;--sf:#fff;--bd:#e2ddd5;--tx:#1a1a18;--mu:#7a776e;--ra:14px;--rs:8px}
@@ -151,8 +152,8 @@
 
 <div id="tela-login" class="login-wrap">
   <div class="login-box">
-    <div class="login-logo">🌿</div>
-    <div class="login-titulo">Polpa de Maracujá</div>
+    <div class="login-logo" id="login-logo">🌿</div>
+    <div class="login-titulo" id="login-titulo">Polpa de Maracujá</div>
     <div class="login-sub">Entre para acessar o sistema</div>
     <div class="f"><label>E-mail</label><input type="email" id="l-email" placeholder="seu@email.com" inputmode="email" autocomplete="email"/></div>
     <div class="f"><label>Senha</label><input type="password" id="l-senha" placeholder="••••••••" autocomplete="current-password"/></div>
@@ -169,12 +170,12 @@
 
   <div class="tab on" id="tab-estoque">
     <div class="cards">
-      <div class="card full" id="card-est"><div class="lbl">Estoque total</div><div class="val" id="v-est">—</div><div class="un">kg disponíveis</div></div>
-      <div class="card"><div class="lbl">🏕️ Sítio</div><div class="val" id="v-sitio">—</div><div class="un">kg</div></div>
-      <div class="card"><div class="lbl">🏠 PP</div><div class="val" id="v-casa">—</div><div class="un">kg</div></div>
-      <div class="card"><div class="lbl">👵 PP - Vó</div><div class="val" id="v-vo">—</div><div class="un">kg</div></div>
-      <div class="card"><div class="lbl">Entradas hoje</div><div class="val" id="v-en">—</div><div class="un">kg</div></div>
-      <div class="card"><div class="lbl">Saídas hoje</div><div class="val" id="v-sa">—</div><div class="un">kg</div></div>
+      <div class="card full" id="card-est"><div class="lbl" id="lbl-estoque-total">Estoque total</div><div class="val" id="v-est">—</div><div class="un" id="lbl-estoque-un">kg disponíveis</div></div>
+      <div class="card"><div class="lbl" id="lbl-local-0">🏕️ Sítio</div><div class="val" id="v-sitio">—</div><div class="un" id="lbl-un-0">kg</div></div>
+      <div class="card"><div class="lbl" id="lbl-local-1">🏠 PP</div><div class="val" id="v-casa">—</div><div class="un" id="lbl-un-1">kg</div></div>
+      <div class="card"><div class="lbl" id="lbl-local-2">👵 PP - Vó</div><div class="val" id="v-vo">—</div><div class="un" id="lbl-un-2">kg</div></div>
+      <div class="card"><div class="lbl" id="lbl-entradas-hoje">Entradas hoje</div><div class="val" id="v-en">—</div><div class="un" id="lbl-un-en">kg</div></div>
+      <div class="card"><div class="lbl" id="lbl-saidas-hoje">Saídas hoje</div><div class="val" id="v-sa">—</div><div class="un" id="lbl-un-sa">kg</div></div>
     </div>
     <div class="page-pad" style="padding-bottom:1.5rem">
       <div class="sec-header" style="margin-bottom:10px">
@@ -205,7 +206,7 @@
       <div id="en-prev" style="display:none" class="prod-prev"></div>
       <div class="f"><label>Quantidade (unidades)</label><input type="number" id="en-qtd" placeholder="Ex: 20" min="1" step="1" inputmode="numeric" oninput="calcEn()"/></div>
       <div class="f"><label>Total em kg (calculado)</label><input type="text" id="en-kg" class="f-ro" readonly/></div>
-      <div class="f"><label>Estoque de destino</label><select id="en-local"><option value="Sítio">Sítio</option><option value="PP">PP</option><option value="PP - Vó">PP - Vó</option></select></div>
+      <div class="f"><label>Estoque de destino</label><select id="en-local"><!-- preenchido pelo config.js --></select></div>
       <div class="f"><label>Observação (opcional)</label><input type="text" id="en-obs" placeholder="Ex: Produção da semana"/></div>
       <button class="btn-grande btn-verde" onclick="confirmarEntrada()" id="btn-en" style="margin-top:.5rem">
         <span>📥</span><div><div>Confirmar entrada</div><div class="btn-sub">Adiciona ao estoque</div></div>
@@ -224,17 +225,15 @@
       <div id="venda-linhas"></div>
       <div id="venda-total" style="display:none;background:var(--gbg);border-radius:var(--rs);padding:.75rem 1rem;margin-bottom:1rem;font-size:14px;color:var(--gtx)"></div>
       <div class="f"><label>Estoque de saída</label>
-        <select id="vd-local" onchange="recarregarTodosDisponiveis()"><option value="Sítio">Sítio</option><option value="PP">PP</option><option value="PP - Vó">PP - Vó</option></select>
+        <select id="vd-local" onchange="recarregarTodosDisponiveis()"><!-- preenchido pelo config.js --></select>
       </div>
       <div class="f"><label>Vendedor(a)</label>
-        <select id="vd-vendedor"><option value="">— selecione —</option><option value="Adão">Adão</option><option value="Silvana">Silvana</option><option value="Vitor">Vitor</option></select>
+        <select id="vd-vendedor"><option value="">— selecione —</option><!-- preenchido pelo config.js --></select>
       </div>
       <div class="f"><label>Conta que recebeu</label>
         <select id="vd-conta" onchange="onVdConta()">
           <option value="">— selecione —</option>
-          <option value="Adão Dinheiro">Adão Dinheiro</option><option value="Adão Banco">Adão Banco</option>
-          <option value="Vitor Dinheiro">Vitor Dinheiro</option><option value="Vitor Banco">Vitor Banco</option>
-          <option value="Amostra">Amostra</option><option value="Uso próprio">Uso próprio</option>
+          <!-- preenchido pelo config.js -->
         </select>
       </div>
       <div class="f" id="vd-cliente-wrap">
@@ -296,8 +295,8 @@
       <div class="kpi-grid" id="r-kpis" style="display:none">
         <div class="kpi dest"><div class="kl">Faturamento</div><div class="kv" id="r-fat">—</div><div class="ku">vendas pagas no período</div></div>
         <div class="kpi" style="border-left:3px solid var(--r)"><div class="kl">A receber</div><div class="kv" id="r-areceber" style="color:var(--r)">—</div><div class="ku">fiados pendentes</div></div>
-        <div class="kpi"><div class="kl">Kg vendidos</div><div class="kv" id="r-kgv">—</div><div class="ku">kg saídos (comercial)</div></div>
-        <div class="kpi"><div class="kl">Kg produzidos</div><div class="kv" id="r-kgc">—</div><div class="ku">kg entrados</div></div>
+        <div class="kpi"><div class="kl" id="lbl-kpi-kgv">Kg vendidos</div><div class="kv" id="r-kgv">—</div><div class="ku" id="lbl-kpi-kgv-sub">kg saídos (comercial)</div></div>
+        <div class="kpi"><div class="kl" id="lbl-kpi-kgc">Kg produzidos</div><div class="kv" id="r-kgc">—</div><div class="ku" id="lbl-kpi-kgc-sub">kg entrados</div></div>
         <div class="kpi" style="grid-column:span 2;border-left:3px solid var(--mu)"><div class="kl">Kg não comercial</div><div class="kv" id="r-kgnc" style="color:var(--mu)">—</div><div class="ku">amostras e uso próprio</div></div>
       </div>
       <button class="export-btn" id="r-export" style="display:none" onclick="exportarCSV()">📥 Exportar CSV (Excel)</button>
@@ -343,8 +342,8 @@
       <div class="sec-title" style="margin-bottom:12px">Transferir entre estoques</div>
       <div class="f"><label>Produto</label><select id="tr-produto" onchange="onTrProduto()"><option value="">— selecione —</option></select></div>
       <div id="tr-prev" style="display:none" class="prod-prev"></div>
-      <div class="f"><label>Origem</label><select id="tr-origem" onchange="onTrOrigem()"><option value="Sítio">Sítio</option><option value="PP">PP</option><option value="PP - Vó">PP - Vó</option></select></div>
-      <div class="f"><label>Destino</label><select id="tr-destino"><option value="PP">PP</option><option value="Sítio">Sítio</option><option value="PP - Vó">PP - Vó</option></select></div>
+      <div class="f"><label>Origem</label><select id="tr-origem" onchange="onTrOrigem()"><!-- preenchido pelo config.js --></select></div>
+      <div class="f"><label>Destino</label><select id="tr-destino"><!-- preenchido pelo config.js --></select></div>
       <div class="f"><label>Quantidade (unidades)</label><input type="number" id="tr-qtd" placeholder="Ex: 10" min="1" step="1" inputmode="numeric" oninput="calcTr()"/></div>
       <div class="f"><label>Total em kg (calculado)</label><input type="text" id="tr-kg" class="f-ro" readonly/></div>
       <div id="tr-disp" style="font-size:12px;color:var(--mu);margin:-0.5rem 0 1rem"></div>
@@ -365,7 +364,7 @@
   <div id="sidebar-overlay" onclick="fecharSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300"></div>
   <nav id="sidebar" style="position:fixed;top:0;left:-280px;width:260px;height:100vh;background:var(--sf);z-index:301;transition:left .25s ease;box-shadow:4px 0 20px rgba(0,0,0,.15);display:flex;flex-direction:column;overflow:hidden">
     <div style="background:var(--g);padding:1.5rem 1.25rem 1rem;flex-shrink:0">
-      <div style="font-size:18px;font-weight:600;color:#fff">🌿 Polpa de Maracujá</div>
+      <div style="font-size:18px;font-weight:600;color:#fff" id="sidebar-nome">🌿 Polpa de Maracujá</div>
       <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:3px" id="sb-user">—</div>
     </div>
     <div style="flex:1;overflow-y:auto;padding:.5rem 0">
@@ -393,8 +392,7 @@
     <div class="f"><label>Conta que recebeu</label>
       <select id="pago-conta">
         <option value="">— selecione —</option>
-        <option value="Adão Dinheiro">Adão Dinheiro</option><option value="Adão Banco">Adão Banco</option>
-        <option value="Vitor Dinheiro">Vitor Dinheiro</option><option value="Vitor Banco">Vitor Banco</option>
+        <!-- preenchido pelo config.js -->
       </select>
     </div>
     <div class="f"><label>Observação (opcional)</label><input type="text" id="pago-obs" placeholder="Ex: Pago em dinheiro"/></div>
@@ -409,7 +407,7 @@
 <!-- MODAL: CLIENTE (novo / editar) -->
 <div class="ov" id="ov-cliente" onclick="fecharOvSeFora(event,'ov-cliente',true)">
   <div class="modal">
-    <div class="modal-hd"><h2 id="cli-titulo">👥 Novo cliente</h2><button class="btn-x" onclick="cancelarModalCliente()">✕</button></div>
+    <div class="modal-hd"><h2 id="cli-titulo">👥 Novo cliente</h2><button class="btn-x" onclick="fechar('ov-cliente')">✕</button></div>
     <div class="f">
       <label>Nome <span style="color:var(--r)">*</span></label>
       <input type="text" id="cli-nome" placeholder="Nome completo"/>
@@ -432,9 +430,9 @@
 <div class="ov" id="ov-produto" onclick="fecharOvSeFora(event,'ov-produto')">
   <div class="modal">
     <div class="modal-hd"><h2 id="prod-titulo">🏷️ Novo produto</h2><button class="btn-x" onclick="fechar('ov-produto')">✕</button></div>
-    <div class="f"><label>Nome do produto</label><input type="text" id="p-nome" placeholder="Ex: Pote 500g, Sachê 100g..."/></div>
+    <div class="f"><label>Nome do produto</label><input type="text" id="p-nome" placeholder="Ex: produto..."/></div>
     <div class="f"><label>Tipo de embalagem</label>
-      <select id="p-tipo"><option value="pote">🥃 Pote</option><option value="sache">🧴 Sachê</option><option value="pacote">📦 Pacote</option><option value="outro">📋 Outro</option></select>
+      <select id="p-tipo"><!-- preenchido pelo config.js --></select>
     </div>
     <div class="f-row">
       <div class="f"><label>Peso por unid. (g)</label><input type="number" id="p-peso" placeholder="Ex: 500" min="1" step="1" inputmode="numeric"/></div>
@@ -454,24 +452,87 @@
 const SB = supabase.createClient(window.__env.SUPABASE_URL, window.__env.SUPABASE_ANON_KEY, {
   auth: { persistSession: false, autoRefreshToken: true }
 });
-const EMOJI = {pote:'🥃',sache:'🧴',pacote:'📦',outro:'📋'};
-const LABEL = {pote:'Pote',sache:'Sachê',pacote:'Pacote',outro:'Outro'};
+// Gerado a partir do APP_CONFIG — não edite aqui, edite o config.js
+const EMOJI = Object.fromEntries(APP_CONFIG.tiposProduto.map(t=>[t.value,t.emoji]));
+const LABEL = Object.fromEntries(APP_CONFIG.tiposProduto.map(t=>[t.value,t.label]));
 const R$ = n => (+n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const KG = n => (+n||0).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
 const NOW_ISO = () => { const d=new Date(),p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; };
-
-// ✅ CORRIGIDO: inclui offset de fuso horário para gravar horário correto no Supabase
-const agoraLocal = () => { const d=new Date(),off=-d.getTimezoneOffset(),sign=off>=0?'+':'-',ph=String(Math.floor(Math.abs(off)/60)).padStart(2,'0'),pm=String(Math.abs(off)%60).padStart(2,'0'),p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}${sign}${ph}:${pm}`; };
-
-const LOCAIS = ['Sítio','PP','PP - Vó'];
+const agoraLocal = () => {
+  // Salva com offset do fuso local para o Supabase interpretar corretamente
+  const d=new Date(), p=n=>String(n).padStart(2,'0');
+  const off=-d.getTimezoneOffset(), s=off>=0?'+':'-';
+  const oh=p(Math.floor(Math.abs(off)/60)), om=p(Math.abs(off)%60);
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}${s}${oh}:${om}`;
+};
+const LOCAIS = APP_CONFIG.locais.map(l=>l.key);
 let _usuarioAtual = '';
 let produtos = [];
 let clientes = [];
-let _saldoCache = [];
-let _clientesCarregados = false;
+let _saldoCache = []; // cache da vw_saldo_estoque, atualizado em carregarDados
+let _clientesCarregados = false; // evita recarregar clientes desnecessariamente
+
+// ─── BOOT: aplica APP_CONFIG no DOM ────────────────────────
+function aplicarConfig(){
+  const C=APP_CONFIG;
+  // Cores
+  const r=document.documentElement.style;
+  r.setProperty('--g',   C.corPrincipal);
+  r.setProperty('--g2',  C.corPrincipalClara);
+  r.setProperty('--gbg', C.corPrincipalFundo);
+  r.setProperty('--gtx', C.corPrincipalTexto);
+  // Meta theme-color
+  const mt=document.getElementById('meta-theme-color'); if(mt) mt.content=C.corPrincipal;
+  // Título e identidade
+  document.title=C.nome;
+  const appTitle=document.getElementById('app-title'); if(appTitle) appTitle.textContent=C.nome;
+  const loginLogo=document.getElementById('login-logo'); if(loginLogo) loginLogo.textContent=C.emoji;
+  const loginTit=document.getElementById('login-titulo'); if(loginTit) loginTit.textContent=C.nome;
+  const sbNome=document.getElementById('sidebar-nome'); if(sbNome) sbNome.textContent=C.emoji+' '+C.nome;
+  // Cards de estoque
+  const lbl=document.getElementById('lbl-estoque-total'); if(lbl) lbl.textContent=C.textos.estoque;
+  const lblUn=document.getElementById('lbl-estoque-un'); if(lblUn) lblUn.textContent=C.unidade+' '+C.textos.estoqueUnidade;
+  const lblEn=document.getElementById('lbl-entradas-hoje'); if(lblEn) lblEn.textContent=C.textos.entradasHoje;
+  const lblSa=document.getElementById('lbl-saidas-hoje'); if(lblSa) lblSa.textContent=C.textos.saidasHoje;
+  C.locais.forEach((loc,i)=>{
+    const el=document.getElementById('lbl-local-'+i); if(el) el.textContent=loc.emoji+' '+loc.label;
+    const un=document.getElementById('lbl-un-'+i); if(un) un.textContent=C.unidade;
+  });
+  ['lbl-un-en','lbl-un-sa'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent=C.unidade; });
+  // KPIs do relatório
+  const kv=document.getElementById('lbl-kpi-kgv'); if(kv) kv.textContent=C.unidade+' '+C.textos.kgVendidos;
+  const kvs=document.getElementById('lbl-kpi-kgv-sub'); if(kvs) kvs.textContent=C.unidade+' saídos (comercial)';
+  const kc=document.getElementById('lbl-kpi-kgc'); if(kc) kc.textContent=C.unidade+' '+C.textos.kgProduzidos;
+  const kcs=document.getElementById('lbl-kpi-kgc-sub'); if(kcs) kcs.textContent=C.unidade+' entrados';
+  // Tipos de produto no select
+  const pTipo=document.getElementById('p-tipo');
+  if(pTipo) pTipo.innerHTML=C.tiposProduto.map(t=>`<option value="${t.value}">${t.emoji} ${t.label}</option>`).join('');
+  // Placeholder nome do produto
+  const pNome=document.getElementById('p-nome'); if(pNome) pNome.placeholder=C.textos.placeholderProd;
+  // Selects de local
+  const optsLocais=C.locais.map(l=>`<option value="${l.key}">${l.label}</option>`).join('');
+  ['en-local','vd-local','tr-origem'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=optsLocais; });
+  // tr-destino: mesma ordem
+  const trDest=document.getElementById('tr-destino'); if(trDest) trDest.innerHTML=optsLocais;
+  // Vendedores
+  const vdVend=document.getElementById('vd-vendedor');
+  if(vdVend) vdVend.innerHTML='<option value="">— selecione —</option>'+C.vendedores.map(v=>`<option value="${v}">${v}</option>`).join('');
+  // Contas (venda + pagar fiado) — comerciais + não-comerciais juntas na venda
+  const todasContas=[...C.contas,...C.contasNaoComerciais];
+  const optsContas=todasContas.map(c=>`<option value="${c}">${c}</option>`).join('');
+  const vdConta=document.getElementById('vd-conta');
+  if(vdConta) vdConta.innerHTML='<option value="">— selecione —</option>'+optsContas;
+  // Pagar fiado: só contas comerciais
+  const pagConta=document.getElementById('pago-conta');
+  if(pagConta) pagConta.innerHTML='<option value="">— selecione —</option>'+C.contas.map(c=>`<option value="${c}">${c}</option>`).join('');
+  // Placeholder observações
+  const enObs=document.getElementById('en-obs'); if(enObs) enObs.placeholder=C.textos.placeholderObs;
+  const vdObs=document.getElementById('vd-obs'); if(vdObs) vdObs.placeholder=C.textos.placeholderVenda;
+}
+aplicarConfig(); // executa imediatamente
 
 // ─── TOGGLE VISUALIZAÇÃO ESTOQUE ────────────────────────────
-let _vizEstoque = 'produto';
+let _vizEstoque = 'produto'; // 'produto' ou 'local'
 function mudarVisualizacao(modo) {
   _vizEstoque = modo;
   document.getElementById('toggle-produto').classList.toggle('on', modo === 'produto');
@@ -650,6 +711,7 @@ let _clienteSelecionadoId = null;
 let _acIdx = -1;
 
 function onClienteInput(val){
+  // Só perde o vínculo se o texto mudou em relação ao cliente selecionado
   const nomeAtual=_clienteSelecionadoId?document.getElementById('cli-sel-nome').textContent:'';
   if(val !== nomeAtual){
     _clienteSelecionadoId=null;
@@ -714,10 +776,8 @@ async function confirmarEntrada(){
   const p=produtos.find(x=>x.id===id); if(!p) return;
   const qty_kg=(p.peso_g*qtd)/1000, btn=document.getElementById('btn-en');
   btn.innerHTML='<span class="spinner"></span>Salvando...'; btn.disabled=true;
-  // ✅ CORRIGIDO: grava user_email do usuário logado
-  const {data:{user:_uEn}}=await SB.auth.getUser();
-  const uid=_uEn?.id||null, uemail=_uEn?.email||null;
-  const{error}=await SB.from('movimentacoes').insert({tipo:'entrada',qty_kg,produto_id:p.id,produto_nome:p.nome,unidades:qtd,descricao:obs||null,user_id:uid,user_email:uemail,local:document.getElementById('en-local').value,criado_em:agoraLocal()});
+  const uid=(await SB.auth.getUser()).data?.user?.id||null;
+  const{error}=await SB.from('movimentacoes').insert({tipo:'entrada',qty_kg,produto_id:p.id,produto_nome:p.nome,unidades:qtd,descricao:obs||null,user_id:uid,local:document.getElementById('en-local').value,criado_em:agoraLocal()});
   if(error){alert('Erro: '+error.message);btn.innerHTML='<span>📥</span><div><div>Confirmar entrada</div><div class="btn-sub">Adiciona ao estoque</div></div>';btn.disabled=false;return;}
   ['en-produto','en-qtd','en-obs'].forEach(id=>{document.getElementById(id).value='';});
   document.getElementById('en-local').value='Sítio'; document.getElementById('en-kg').value=''; document.getElementById('en-prev').style.display='none';
@@ -762,6 +822,7 @@ function renderLinhasVenda(){
 async function carregarDisponivelLinha(lid,prodId){
   const el=document.getElementById('disp-txt-'+lid); if(!el) return;
   const localSel=document.getElementById('vd-local')?.value||'';
+  // Usa o cache da vw_saldo_estoque — zero queries adicionais ao banco
   const dispLocal=_saldoCache
     .filter(s=>s.produto_id===prodId&&(!localSel||s.local===localSel))
     .reduce((a,s)=>a+ +s.saldo_kg,0);
@@ -786,7 +847,7 @@ function onVdPreco(lid){
   const val=inp.value.replace(',','.'); l.preco=val===''?null:parseFloat(val);
   inp.style.borderColor=(l.preco===null)?'var(--r)':''; atualizarCalcLinha(lid); atualizarTotalVenda();
 }
-const NC_CONTAS_VENDA=['Amostra','Uso próprio'];
+const NC_CONTAS_VENDA=APP_CONFIG.contasNaoComerciais;
 function onVdConta(){
   const conta=document.getElementById('vd-conta').value;
   if(NC_CONTAS_VENDA.includes(conta)){
@@ -820,6 +881,7 @@ async function confirmarVenda(){
   if(!clienteNome){alert('Informe o cliente.');return;}
   if(!isFiado&&!conta){alert('Informe a conta que recebeu.');return;}
   for(const l of linhasValidas){ const p=produtos.find(x=>x.id===l.prodId); if(l.preco===null||l.preco===undefined||isNaN(l.preco)){alert(`Informe o preço para "${p?p.nome:'produto'}".\n\nSe for doação, coloque 0.`);return;} }
+  // Verificação de estoque em tempo real (evita conflito entre usuários)
   const idsNecessarios=[...new Set(linhasValidas.map(l=>l.prodId))];
   const{data:saldoReal,error:eSaldo}=await SB.from('vw_saldo_estoque')
     .select('produto_id,local,saldo_kg')
@@ -839,15 +901,14 @@ async function confirmarVenda(){
     reservas[p.id].reservado+=kgSol;
   }
   const btn=document.getElementById('btn-vd'); btn.innerHTML='<span class="spinner"></span>Salvando...'; btn.disabled=true;
-  // ✅ CORRIGIDO: grava user_email do usuário logado
-  const {data:{user:_uVd}}=await SB.auth.getUser();
-  const uid=_uVd?.id||null, uemail=_uVd?.email||null, tsVenda=agoraLocal();
+  const uid=(await SB.auth.getUser()).data?.user?.id||null, tsVenda=agoraLocal();
+  // Inserção atômica — todos os produtos em uma única operação (tudo ou nada)
   const registros=linhasValidas.map(l=>{
     const p=produtos.find(x=>x.id===l.prodId);
     const qty_kg=(p.peso_g*l.qtd)/1000, preco_total=(l.preco||0)*l.qtd;
     return {tipo:'saida',qty_kg,produto_id:p.id,produto_nome:p.nome,unidades:l.qtd,preco_total,
       vendedor:vendedor||null,conta:isFiado?null:(conta||null),cliente:clienteNome||null,
-      cliente_id:_clienteSelecionadoId||null,descricao:obs||null,user_id:uid,user_email:uemail,local:localVenda,
+      cliente_id:_clienteSelecionadoId||null,descricao:obs||null,user_id:uid,local:localVenda,
       fiado:isFiado,fiado_nome:isFiado?clienteNome||null:null,fiado_pago:isFiado?false:null,criado_em:tsVenda};
   });
   const{error:errVenda}=await SB.from('movimentacoes').insert(registros);
@@ -860,29 +921,33 @@ async function confirmarVenda(){
 }
 
 // ─── DADOS / ESTOQUE ─────────────────────────────────────────
+// Usa views pré-calculadas no banco — o histórico nunca é baixado completo.
 async function carregarDados(){
+  // 3 queries leves em paralelo
   const [r1, r2, r3] = await Promise.all([
     SB.from('vw_saldo_estoque').select('produto_id,produto_nome,local,saldo_kg'),
-    SB.from('vw_movs_hoje').select('tipo,qty_kg'),
-    SB.from('vw_usuarios_vendedor').select('user_id,user_email'),
+    SB.from('movimentacoes').select('tipo,qty_kg,is_transferencia')
+      .gte('criado_em',(()=>{ const d=new Date(),p=n=>String(n).padStart(2,'0'),o=-d.getTimezoneOffset(),s=o>=0?'+':'-'; return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T00:00:00${s}${p(Math.floor(Math.abs(o)/60))}:${p(Math.abs(o)%60)}`; })())
+      .lte('criado_em',(()=>{ const d=new Date(),p=n=>String(n).padStart(2,'0'),o=-d.getTimezoneOffset(),s=o>=0?'+':'-'; return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T23:59:59${s}${p(Math.floor(Math.abs(o)/60))}:${p(Math.abs(o)%60)}`; })()),
+    SB.from('vw_usuarios_vendedor').select('user_id,vendedor'),
   ]);
   if(r1.error){console.error(r1.error);return;}
   if(r2.error){console.error(r2.error);}
   if(r3.error){console.error(r3.error);}
 
-  // ✅ CORRIGIDO: mapa usa user_email em vez de vendedor
-  const _usuariosMap_local = {};
-  (r3.data||[]).forEach(m=>{ if(m.user_id && m.user_email) _usuariosMap_local[m.user_id]=m.user_email.split('@')[0]; });
-  Object.assign(_usuariosMap, _usuariosMap_local);
+  // mapa usuário→vendedor (view já deduplica no banco)
+  (r3.data||[]).forEach(m=>{ if(!_usuariosMap[m.user_id]) _usuariosMap[m.user_id]=m.vendedor; });
 
+  // entradas e saídas de hoje (view já filtra por data no banco)
   const movsHoje=r2.data||[];
-  const enHj=movsHoje.filter(m=>m.tipo==='entrada').reduce((a,m)=>a+ +m.qty_kg,0);
-  const saHj=movsHoje.filter(m=>m.tipo==='saida'  ).reduce((a,m)=>a+ +m.qty_kg,0);
+  const enHj=movsHoje.filter(m=>m.tipo==='entrada'&&!m.is_transferencia).reduce((a,m)=>a+ +m.qty_kg,0);
+  const saHj=movsHoje.filter(m=>m.tipo==='saida'  &&!m.is_transferencia).reduce((a,m)=>a+ +m.qty_kg,0);
 
+  // saldos por local — view já somou tudo no banco
   const saldos=r1.data||[];
-  _saldoCache=saldos;
+  _saldoCache=saldos; // salva para uso em carregarDisponivelLinha sem nova query
   const soma=(local)=>saldos.filter(s=>s.local===local).reduce((a,s)=>a+ +s.saldo_kg,0);
-  const kgSitio=soma('Sítio'), kgCasa=soma('PP'), kgVo=soma('PP - Vó');
+  const [kgSitio,kgCasa,kgVo]=APP_CONFIG.locais.map(l=>soma(l.key));
   const kgSL=saldos.filter(s=>!s.local).reduce((a,s)=>a+ +s.saldo_kg,0);
   const est=Math.max(0,kgSitio)+Math.max(0,kgCasa)+Math.max(0,kgVo)+Math.max(0,kgSL);
 
@@ -893,6 +958,7 @@ async function carregarDados(){
   document.getElementById('v-casa').textContent =KG(Math.max(0,kgCasa));
   document.getElementById('v-vo').textContent   =KG(Math.max(0,kgVo));
 
+  // ── POR PRODUTO ─ agrupa os saldos já prontos da view ────
   const porProd={};
   saldos.forEach(s=>{
     if(!s.produto_id&&!s.produto_nome) return;
@@ -900,26 +966,25 @@ async function carregarDados(){
     if(!porProd[key]) porProd[key]={nome,total:0,sitio:0,casa:0,vo:0,semLocal:0};
     const v=+s.saldo_kg;
     porProd[key].total+=v;
-    if(s.local==='Sítio')      porProd[key].sitio+=v;
-    else if(s.local==='PP')         porProd[key].casa+=v;
-    else if(s.local==='PP - Vó') porProd[key].vo+=v;
-    else                            porProd[key].semLocal+=v;
+    const li=APP_CONFIG.locais.findIndex(l=>l.key===s.local);
+    if(li===0)      porProd[key].sitio+=v;
+    else if(li===1) porProd[key].casa+=v;
+    else if(li===2) porProd[key].vo+=v;
+    else            porProd[key].semLocal+=v;
   });
   const elP=document.getElementById('estoque-por-produto'), prods=Object.values(porProd).filter(p=>p.total>0.001);
   if(!prods.length){elP.innerHTML='<div style="font-size:13px;color:var(--mu);padding:.5rem 0">Nenhum produto em estoque.</div>';}
   else{elP.innerHTML=prods.map(p=>`<div class="item" style="margin-bottom:6px"><div class="item-body"><div class="item-nome">${p.nome}</div><div class="item-det">🏕️ ${KG(Math.max(0,p.sitio))} kg &nbsp;·&nbsp; 🏠 ${KG(Math.max(0,p.casa))} kg &nbsp;·&nbsp; 👵 ${KG(Math.max(0,p.vo))} kg${p.semLocal>0.001?` &nbsp;·&nbsp; 📍 ${KG(p.semLocal)} kg`:''}</div></div><div class="item-val g">${KG(Math.max(0,p.total))} kg</div></div>`).join('');}
 
-  const locaisConfig = [
-    {key:'Sítio',  emoji:'🏕️', total:kgSitio},
-    {key:'PP',     emoji:'🏠', total:kgCasa},
-    {key:'PP - Vó',emoji:'👵', total:kgVo},
-  ];
+  // ── POR LOCAL ────────────────────────────────────────────
+  const _totais=[kgSitio,kgCasa,kgVo];
+  const locaisConfig=APP_CONFIG.locais.map((l,i)=>({...l,total:_totais[i]}));
   const elL = document.getElementById('estoque-por-local');
   const blocos = locaisConfig.map(loc => {
     const kg = Math.max(0, loc.total);
     const prodsDaqui = Object.values(porProd)
       .map(p => {
-        const kgLocal = loc.key==='Sítio' ? p.sitio : loc.key==='PP' ? p.casa : p.vo;
+        const _li=APP_CONFIG.locais.findIndex(l=>l.key===loc.key); const kgLocal=_li===0?p.sitio:_li===1?p.casa:p.vo;
         return { nome: p.nome, kg: Math.max(0, kgLocal) };
       })
       .filter(p => p.kg > 0.001)
@@ -957,7 +1022,7 @@ function irPara(aba){
   if(aba==='fiado')     carregarFiado();
   if(aba==='transf')    preencherSelectTransf();
   if(aba==='clientes')  { carregarClientes(); document.getElementById('cli-busca').value=''; }
-  if(aba==='relatorio') atalho('mes',document.getElementById('btn-atalho-mes'));
+  if(aba==='relatorio'){ _relCache={de:'',ate:'',dados:[]}; atalho('mes',document.getElementById('btn-atalho-mes')); }
 }
 function abrirSidebar(){ document.getElementById('sidebar').style.left='0'; document.getElementById('sidebar-overlay').style.display='block'; SB.auth.getUser().then(r=>{const el=document.getElementById('sb-user');if(el) el.textContent=r.data?.user?.email||'';}); }
 function fecharSidebar(){ document.getElementById('sidebar').style.left='-280px'; document.getElementById('sidebar-overlay').style.display='none'; }
@@ -966,6 +1031,7 @@ function fecharSidebar(){ document.getElementById('sidebar').style.left='-280px'
 function onTrProduto(){ const id=document.getElementById('tr-produto').value, prev=document.getElementById('tr-prev'); if(!id){prev.style.display='none';document.getElementById('tr-kg').value='';return;} const p=produtos.find(x=>x.id===id); if(!p) return; prev.style.display='block'; prev.innerHTML=`<strong>${EMOJI[p.tipo]||'📦'} ${p.nome}</strong> · ${p.peso_g}g por unidade`; calcTr(); onTrOrigem(); }
 async function onTrOrigem(){ const id=document.getElementById('tr-produto').value; if(!id) return; const origem=document.getElementById('tr-origem').value; const opts = LOCAIS.filter(l=>l!==origem);
   document.getElementById('tr-destino').value = opts[0]||'PP';
+  // Usa cache da vw_saldo_estoque — sem query ao banco
   const kg=_saldoCache.filter(s=>s.produto_id===id&&s.local===origem).reduce((a,s)=>a+ +s.saldo_kg,0);
   const disp=Math.max(0,kg); const el=document.getElementById('tr-disp'); el.textContent=`Disponível em ${origem}: ${KG(disp)} kg`; el.style.color=disp>0?'var(--g2)':'var(--r)'; }
 function calcTr(){ const id=document.getElementById('tr-produto').value, qtd=parseInt(document.getElementById('tr-qtd').value), p=produtos.find(x=>x.id===id); document.getElementById('tr-kg').value=(p&&qtd>0)?KG((p.peso_g*qtd)/1000)+' kg':''; }
@@ -974,18 +1040,17 @@ async function confirmarTransferencia(){
   if(!id){alert('Selecione um produto.');return;} if(origem===destino){alert('Origem e destino não podem ser iguais.');return;} if(!qtd||qtd<=0){alert('Informe a quantidade.');return;}
   const p=produtos.find(x=>x.id===id); if(!p) return;
   const kg=(p.peso_g*qtd)/1000;
+  // Verificação em tempo real — evita conflito entre usuários simultâneos
   const{data:saldoTr,error:eSaldoTr}=await SB.from('vw_saldo_estoque')
     .select('saldo_kg').eq('produto_id',id).eq('local',origem);
   if(eSaldoTr){alert('Erro ao verificar estoque: '+eSaldoTr.message);return;}
   const dispOrigem=Math.max(0,(saldoTr||[]).reduce((a,s)=>a+ +s.saldo_kg,0));
   if(kg>dispOrigem+0.001){alert(`Estoque insuficiente em ${origem}!\nDisponível: ${KG(dispOrigem)} kg\nSolicitado: ${KG(kg)} kg`);return;}
   const btn=document.getElementById('btn-tr'); btn.innerHTML='<span class="spinner"></span><div><div>Salvando...</div></div>'; btn.disabled=true;
-  // ✅ CORRIGIDO: grava user_email do usuário logado
-  const {data:{user:_uTr}}=await SB.auth.getUser();
-  const uid=_uTr?.id||null, uemail=_uTr?.email||null, ts=agoraLocal();
+  const uid=(await SB.auth.getUser()).data?.user?.id||null, ts=agoraLocal();
   const{error:errT}=await SB.from('movimentacoes').insert([
-    {tipo:'saida', qty_kg:kg,produto_id:p.id,produto_nome:p.nome,unidades:qtd,local:origem,descricao:`Transferência → ${destino}`,user_id:uid,user_email:uemail,criado_em:ts,is_transferencia:true},
-    {tipo:'entrada',qty_kg:kg,produto_id:p.id,produto_nome:p.nome,unidades:qtd,local:destino,descricao:`Transferência ← ${origem}`,user_id:uid,user_email:uemail,criado_em:ts,is_transferencia:true}
+    {tipo:'saida', qty_kg:kg,produto_id:p.id,produto_nome:p.nome,unidades:qtd,local:origem,descricao:`Transferência → ${destino}`,user_id:uid,criado_em:ts,is_transferencia:true},
+    {tipo:'entrada',qty_kg:kg,produto_id:p.id,produto_nome:p.nome,unidades:qtd,local:destino,descricao:`Transferência ← ${origem}`,user_id:uid,criado_em:ts,is_transferencia:true}
   ]);
   btn.innerHTML='<span>🔄</span><div><div>Confirmar transferência</div><div class="btn-sub">Move kg entre estoques</div></div>'; btn.disabled=false;
   if(errT){alert('Erro na transferência: '+errT.message+'\n\nNenhum dado foi alterado.');return;}
@@ -1040,24 +1105,29 @@ function atalho(tipo,btn){
 }
 let _relPagina=0;
 const _REL_POR_PAG=50;
+// Cache de KPIs/gráficos: só rebuscado quando muda o período, não ao virar página
 let _relCache={de:'',ate:'',dados:[]};
 async function gerarRelatorio(pagina=0){
   const de=document.getElementById('r-de').value, ate=document.getElementById('r-ate').value; if(!de||!ate) return;
   _relPagina=pagina;
   const btn=document.getElementById('btn-rel'); btn.innerHTML='<span class="spinner"></span><div><div>Carregando...</div></div>'; btn.disabled=true;
-  const cols='id,tipo,qty_kg,produto_nome,unidades,preco_total,vendedor,conta,cliente,local,user_id,user_email,fiado,fiado_pago,is_transferencia,criado_em,descricao';
+  const cols='id,tipo,qty_kg,produto_nome,unidades,preco_total,vendedor,conta,cliente,local,user_id,fiado,fiado_pago,is_transferencia,criado_em,descricao';
+  // Calcula offset do fuso local dinamicamente (cobre horário de verão)
+  const _off=(()=>{ const d=new Date(),p=n=>String(n).padStart(2,'0'),o=-d.getTimezoneOffset(),s=o>=0?'+':'-'; return `${s}${p(Math.floor(Math.abs(o)/60))}:${p(Math.abs(o)%60)}`; })();
   const periodoMudou=(de!==_relCache.de||ate!==_relCache.ate);
+  // Só busca todos os dados se o período mudou (KPIs e gráficos)
   if(periodoMudou){
     const{data:todos,error:e1}=await SB.from('movimentacoes').select(cols)
-      .gte('criado_em',de+'T00:00:00').lte('criado_em',ate+'T23:59:59')
+      .gte('criado_em',de+'T00:00:00'+_off).lte('criado_em',ate+'T23:59:59'+_off)
       .order('criado_em',{ascending:false});
     if(e1){btn.innerHTML='<span>📊</span><div><div>Gerar relatório</div><div class="btn-sub">Atualizar dados</div></div>'; btn.disabled=false; toast('Erro ao carregar relatório.');return;}
     _relCache={de,ate,dados:todos||[]};
     _dadosCache=todos||[];
   }
+  // Sempre busca só a página atual da tabela
   const from=pagina*_REL_POR_PAG, to=from+_REL_POR_PAG-1;
   const{data:pag,error:e2,count}=await SB.from('movimentacoes').select(cols,{count:'exact'})
-    .gte('criado_em',de+'T00:00:00').lte('criado_em',ate+'T23:59:59')
+    .gte('criado_em',de+'T00:00:00'+_off).lte('criado_em',ate+'T23:59:59'+_off)
     .order('criado_em',{ascending:false}).range(from,to);
   btn.innerHTML='<span>📊</span><div><div>Gerar relatório</div><div class="btn-sub">Atualizar dados</div></div>'; btn.disabled=false;
   if(e2){toast('Erro ao carregar relatório.');return;}
@@ -1066,8 +1136,10 @@ async function gerarRelatorio(pagina=0){
   renderRelatorio(_relCache.dados, pag||[], count||0);
 }
 function renderRelatorio(data, pagData, pagTotal){
+  // data = todos os registros do período (para KPIs e gráficos)
+  // pagData = página atual da tabela | pagTotal = total de registros
   const show=id=>document.getElementById(id).style.display='block';
-  const NC_CONTAS=['Amostra','Uso próprio'];
+  const NC_CONTAS=APP_CONFIG.contasNaoComerciais;
   const entradas=data.filter(m=>m.tipo==='entrada'&&!m.is_transferencia);
   const saidas  =data.filter(m=>m.tipo==='saida'  &&!m.is_transferencia);
   const saidasNC   =saidas.filter(m=>NC_CONTAS.includes(m.conta));
@@ -1102,17 +1174,18 @@ function renderRelatorio(data, pagData, pagTotal){
   else{document.getElementById('r-bloco-nc').style.display='none';}
   const tbody=document.getElementById('r-tbody');
   const fmtDt=s=>new Date(s).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+  // tabela usa os dados paginados
   const tabelaDados = pagData && pagData.length ? pagData : data.slice(0,_REL_POR_PAG);
   const tabelaTotal = pagTotal || data.length;
-  if(!tabelaDados.length){tbody.innerHTML='<tr><td colspan="10" class="sem-dados">Nenhuma movimentação no período.</td></tr>';}
+  if(!tabelaDados.length){tbody.innerHTML='<tr><td colspan="9" class="sem-dados">Nenhuma movimentação no período.</td></tr>';}
   else{tbody.innerHTML=tabelaDados.map(m=>{
-    // ✅ CORRIGIDO: usa user_email gravado diretamente no registro
-    const nu=m.user_email?m.user_email.split('@')[0]:(m.user_id&&_usuariosMap[m.user_id])?_usuariosMap[m.user_id]:'—';
+    const nu=(m.user_id&&_usuariosMap[m.user_id])?_usuariosMap[m.user_id]:'—';
     const tl=m.is_transferencia?'🔄 Transf.':m.tipo==='entrada'?'📥 Entrada':'📤 Venda';
     const ft=m.fiado&&!m.fiado_pago?'<br><span style="color:var(--r);font-size:10px;font-weight:600">FIADO</span>':m.fiado&&m.fiado_pago?'<br><span style="color:var(--g2);font-size:10px;font-weight:600">✅ PAGO</span>':'';
     return `<tr><td class="td-mu">${fmtDt(m.criado_em)}</td><td>${tl}</td><td>${m.produto_nome||m.descricao||'—'}</td><td>${m.vendedor||'—'}</td><td>${m.conta||'—'}</td><td>${m.local||'—'}</td><td>${m.cliente||'—'}</td><td class="td-mu">${nu}</td><td class="td-r">${m.tipo==='entrada'?'+':'−'}${KG(m.qty_kg)}</td><td class="td-r">${m.preco_total?R$(m.preco_total):'—'}${ft}</td></tr>`;
   }).join('');}
   show('r-bloco-tab');
+  // Paginação
   const totalPags=Math.ceil(tabelaTotal/_REL_POR_PAG);
   let pagHtml='';
   if(totalPags>1){
@@ -1132,10 +1205,7 @@ function exportarCSV(){
   if(!_dadosCache.length) return;
   const cab=['Data','Tipo','Produto','Vendedor','Cliente','Conta','Estoque','Usuário','Unidades','Kg','Valor','Fiado','Pago'];
   const fmtDt=s=>new Date(s).toLocaleString('pt-BR');
-  const linhas=_dadosCache.map(m=>{
-    const nu=m.user_email?m.user_email.split('@')[0]:(m.user_id&&_usuariosMap[m.user_id])?_usuariosMap[m.user_id]:'';
-    return [fmtDt(m.criado_em),m.is_transferencia?'Transferência':m.tipo==='entrada'?'Entrada':'Venda',m.produto_nome||m.descricao||'',m.vendedor||'',m.cliente||'',m.conta||'',m.local||'',nu,m.unidades||'',(+m.qty_kg).toFixed(3).replace('.',','),m.preco_total?(+m.preco_total).toFixed(2).replace('.',','):'',m.fiado?'Sim':'Não',m.fiado?(m.fiado_pago?'Sim':'Não'):''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(';');
-  });
+  const linhas=_dadosCache.map(m=>[fmtDt(m.criado_em),m.is_transferencia?'Transferência':m.tipo==='entrada'?'Entrada':'Venda',m.produto_nome||m.descricao||'',m.vendedor||'',m.cliente||'',m.conta||'',m.local||'',(m.user_id&&_usuariosMap[m.user_id])?_usuariosMap[m.user_id]:'',m.unidades||'',(+m.qty_kg).toFixed(3).replace('.',','),m.preco_total?(+m.preco_total).toFixed(2).replace('.',','):'',m.fiado?'Sim':'Não',m.fiado?(m.fiado_pago?'Sim':'Não'):''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(';'));
   const csv=[cab.join(';'),...linhas].join('\n'), blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}), a=document.createElement('a');
   a.href=URL.createObjectURL(blob); a.download=`relatorio_${document.getElementById('r-de').value}_${document.getElementById('r-ate').value}.csv`; a.click(); URL.revokeObjectURL(a.href); toast('✓ CSV exportado!');
 }
