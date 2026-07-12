@@ -253,6 +253,11 @@
         <input type="checkbox" id="vd-fiado" style="width:18px;height:18px;cursor:pointer;accent-color:var(--r)" onchange="toggleFiado()"/>
         <label for="vd-fiado" style="font-size:15px;font-weight:500;cursor:pointer;flex:1">Venda fiada <span style="font-size:12px;color:var(--mu);font-weight:400">(pagamento pendente)</span></label>
       </div>
+      <div id="fiado-parcial-wrap" style="display:none" class="f">
+        <label>Valor pago agora (opcional)</label>
+        <input type="number" id="vd-valor-pago" placeholder="Ex: 20,00 — deixe vazio se nada foi pago" min="0" step="0.01" inputmode="decimal" oninput="onVdValorPago()"/>
+        <div id="vd-valor-pago-info" style="font-size:12px;color:var(--mu);margin-top:6px"></div>
+      </div>
 
       <button class="btn-grande btn-verm" onclick="confirmarVenda()" id="btn-vd" style="margin-top:.5rem">
         <span>📤</span><div><div>Confirmar venda</div><div class="btn-sub">Desconta do estoque</div></div>
@@ -390,6 +395,7 @@
   <div class="modal">
     <div class="modal-hd"><h2>✅ Confirmar pagamento</h2><button class="btn-x" onclick="fechar('ov-pago')">✕</button></div>
     <div id="pago-info" style="background:var(--gbg);border-radius:var(--rs);padding:.85rem 1rem;margin-bottom:1rem;font-size:14px;color:var(--gtx)"></div>
+    <div class="f"><label>Valor a pagar agora</label><input type="number" id="pago-valor" placeholder="Ex: 20,00" min="0" step="0.01" inputmode="decimal"/></div>
     <div class="f"><label>Conta que recebeu</label>
       <select id="pago-conta">
         <option value="">— selecione —</option>
@@ -401,7 +407,7 @@
     <input type="hidden" id="pago-id"/>
     <div class="modal-btns">
       <button class="btn-cancel" onclick="fechar('ov-pago')">Cancelar</button>
-      <button class="btn-ok-g" onclick="confirmarPagamento()">Marcar como pago</button>
+      <button class="btn-ok-g" onclick="confirmarPagamento()">Registrar pagamento</button>
     </div>
   </div>
 </div>
@@ -469,6 +475,8 @@ let produtos = [];
 let clientes = [];
 let _saldoCache = [];
 let _clientesCarregados = false;
+let _vendaTotalAtual = 0;
+let _fiadoCache = [];
 
 // ─── TOGGLE VISUALIZAÇÃO ESTOQUE ────────────────────────────
 let _vizEstoque = 'produto';
@@ -809,17 +817,42 @@ function atualizarCalcLinha(lid){
 function atualizarTotalVenda(){
   const totalKg=linhasVenda.reduce((a,l)=>{const p=produtos.find(x=>x.id===l.prodId);return a+(p&&l.qtd?(p.peso_g*l.qtd)/1000:0);},0);
   const totalR=linhasVenda.reduce((a,l)=>a+((l.preco||0)*(l.qtd||0)),0);
+  _vendaTotalAtual=totalR;
   const el=document.getElementById('venda-total');
   if(totalKg>0){el.style.display='block';el.innerHTML=`<strong>Total: ${KG(totalKg)} kg${totalR>0?' · '+R$(totalR):''}</strong>`;}else el.style.display='none';
+  onVdValorPago();
 }
+
+// ─── FIADO PARCIAL NA VENDA ───────────────────────────────────
+function onVdValorPago(){
+  const el=document.getElementById('vd-valor-pago-info'); if(!el) return;
+  const isFiado=document.getElementById('vd-fiado').checked;
+  if(!isFiado){ el.textContent=''; return; }
+  const pago=parseFloat((document.getElementById('vd-valor-pago').value||'0').replace(',','.'))||0;
+  const total=_vendaTotalAtual||0;
+  const restante=Math.max(0,total-pago);
+  if(total<=0){ el.textContent=''; }
+  else if(pago<=0.001){ el.textContent=`Ficará ${R$(total)} como fiado.`; }
+  else if(pago>=total-0.001){ el.textContent='Pagamento cobre o valor total — não ficará fiado.'; }
+  else { el.textContent=`Pago agora: ${R$(pago)} · Restante fiado: ${R$(restante)}`; }
+}
+
 async function confirmarVenda(){
   const localVenda=document.getElementById('vd-local').value, vendedor=document.getElementById('vd-vendedor').value.trim(), conta=document.getElementById('vd-conta').value.trim(), clienteNome=document.getElementById('vd-cliente').value.trim(), obs=document.getElementById('vd-obs').value.trim(), isFiado=document.getElementById('vd-fiado').checked;
   const linhasValidas=linhasVenda.filter(l=>l.prodId&&l.qtd>0);
   if(!linhasValidas.length){alert('Adicione ao menos um produto com quantidade.');return;}
   if(!vendedor){alert('Informe o vendedor(a).');return;}
   if(!clienteNome){alert('Informe o cliente.');return;}
-  if(!isFiado&&!conta){alert('Informe a conta que recebeu.');return;}
   for(const l of linhasValidas){ const p=produtos.find(x=>x.id===l.prodId); if(l.preco===null||l.preco===undefined||isNaN(l.preco)){alert(`Informe o preço para "${p?p.nome:'produto'}".\n\nSe for doação, coloque 0.`);return;} }
+  const totalGeral=linhasValidas.reduce((a,l)=>a+((l.preco||0)*(l.qtd||0)),0);
+  let valorPagoAgora=0;
+  if(isFiado){
+    valorPagoAgora=parseFloat((document.getElementById('vd-valor-pago').value||'0').replace(',','.'))||0;
+    if(valorPagoAgora<0){alert('O valor pago agora não pode ser negativo.');return;}
+    if(valorPagoAgora>totalGeral+0.01){alert('O valor pago agora não pode ser maior que o total da venda ('+R$(totalGeral)+').');return;}
+  }
+  const precisaConta = !isFiado || valorPagoAgora>0.001;
+  if(precisaConta && !conta){alert('Informe a conta que recebeu o pagamento.');return;}
   const idsNecessarios=[...new Set(linhasValidas.map(l=>l.prodId))];
   const{data:saldoReal,error:eSaldo}=await SB.from('vw_saldo_estoque')
     .select('produto_id,local,saldo_kg')
@@ -842,21 +875,47 @@ async function confirmarVenda(){
   // ✅ CORRIGIDO: grava user_email do usuário logado
   const {data:{user:_uVd}}=await SB.auth.getUser();
   const uid=_uVd?.id||null, uemail=_uVd?.email||null, tsVenda=agoraLocal();
-  const registros=linhasValidas.map(l=>{
+  let somaDistribuida=0;
+  const registros=linhasValidas.map((l,idx)=>{
     const p=produtos.find(x=>x.id===l.prodId);
     const qty_kg=(p.peso_g*l.qtd)/1000, preco_total=(l.preco||0)*l.qtd;
+    let valor_pago_linha;
+    if(!isFiado){
+      valor_pago_linha=preco_total;
+    } else if(totalGeral>0.001){
+      const isUltima = idx===linhasValidas.length-1;
+      valor_pago_linha = isUltima ? Math.max(0, Math.round((valorPagoAgora - somaDistribuida)*100)/100)
+                                   : Math.round((valorPagoAgora*(preco_total/totalGeral))*100)/100;
+      somaDistribuida += valor_pago_linha;
+    } else {
+      valor_pago_linha = 0;
+    }
+    const linhaQuitada = isFiado ? (valor_pago_linha >= preco_total-0.005) : true;
     return {tipo:'saida',qty_kg,produto_id:p.id,produto_nome:p.nome,unidades:l.qtd,preco_total,
-      vendedor:vendedor||null,conta:isFiado?null:(conta||null),cliente:clienteNome||null,
+      vendedor:vendedor||null,conta:(!isFiado||valorPagoAgora>0.001)?(conta||null):null,cliente:clienteNome||null,
       cliente_id:_clienteSelecionadoId||null,descricao:obs||null,user_id:uid,user_email:uemail,local:localVenda,
-      fiado:isFiado,fiado_nome:isFiado?clienteNome||null:null,fiado_pago:isFiado?false:null,criado_em:tsVenda};
+      fiado:isFiado,fiado_nome:isFiado?clienteNome||null:null,
+      fiado_pago:isFiado?linhaQuitada:null,
+      valor_pago:valor_pago_linha,
+      fiado_pago_em:(isFiado&&linhaQuitada)?tsVenda:null,criado_em:tsVenda};
   });
-  const{error:errVenda}=await SB.from('movimentacoes').insert(registros);
+  const{data:inseridos,error:errVenda}=await SB.from('movimentacoes').insert(registros).select('id,preco_total,valor_pago');
   if(errVenda){alert('Erro ao salvar: '+errVenda.message); btn.innerHTML='<span>📤</span><div><div>Confirmar venda</div><div class="btn-sub">Desconta do estoque</div></div>'; btn.disabled=false; return;}
+  if(isFiado && valorPagoAgora>0.001 && inseridos){
+    const pagamentos=inseridos.filter(r=>+r.valor_pago>0.001).map(r=>({movimentacao_id:r.id,valor:+r.valor_pago,conta:conta||null,obs:'Pagamento no ato da venda',user_id:uid,user_email:uemail}));
+    if(pagamentos.length){ const{error:errPag}=await SB.from('pagamentos_fiado').insert(pagamentos); if(errPag) console.error(errPag); }
+  }
   resetVenda(); ['vd-cliente','vd-obs'].forEach(id=>document.getElementById(id).value='');
   iniciarLinhasVenda(); btn.innerHTML='<span>📤</span><div><div>Confirmar venda</div><div class="btn-sub">Desconta do estoque</div></div>'; btn.disabled=false;
   await carregarDados(); irPara('estoque');
+  let msgExtra='';
+  if(isFiado){
+    if(valorPagoAgora<=0.001) msgExtra=' · Fiado: '+R$(totalGeral);
+    else if(valorPagoAgora>=totalGeral-0.001) msgExtra=' · Pago integralmente';
+    else msgExtra=' · Pago: '+R$(valorPagoAgora)+' · Fiado: '+R$(totalGeral-valorPagoAgora);
+  }
   const total=linhasValidas.reduce((a,l)=>{const p=produtos.find(x=>x.id===l.prodId);return a+(p?p.peso_g*l.qtd/1000:0);},0);
-  toast('✓ Venda registrada — '+KG(total)+' kg');
+  toast('✓ Venda registrada — '+KG(total)+' kg'+msgExtra);
 }
 
 // ─── DADOS / ESTOQUE ─────────────────────────────────────────
@@ -1000,6 +1059,9 @@ function toggleFiado(){
   const fw=document.getElementById('fiado-wrap');
   fw.style.borderColor=f?'var(--r)':'var(--bd)';
   fw.style.background=f?'var(--rbg)':'var(--bg)';
+  document.getElementById('fiado-parcial-wrap').style.display=f?'block':'none';
+  if(!f) document.getElementById('vd-valor-pago').value='';
+  onVdValorPago();
 }
 function resetVenda(){
   document.getElementById('vd-fiado').checked=false;
@@ -1008,6 +1070,9 @@ function resetVenda(){
   document.getElementById('vd-local').value='Sítio';
   document.getElementById('fiado-wrap').style.borderColor='var(--bd)';
   document.getElementById('fiado-wrap').style.background='var(--bg)';
+  document.getElementById('vd-valor-pago').value='';
+  document.getElementById('fiado-parcial-wrap').style.display='none';
+  document.getElementById('vd-valor-pago-info').textContent='';
   limparClienteSelecionado();
   const cw=document.getElementById('vd-cliente-wrap');if(cw) cw.style.display='block';
 }
@@ -1015,15 +1080,57 @@ async function carregarFiado(){
   const el=document.getElementById('lista-fiado'); el.innerHTML='<div class="vazio"><div class="vazio-i">⏳</div>Carregando...</div>';
   const{data,error}=await SB.from('movimentacoes').select('*').eq('tipo','saida').eq('fiado',true).eq('fiado_pago',false).order('criado_em',{ascending:false});
   if(error){el.innerHTML='<div class="vazio">Erro ao carregar.</div>';return;}
-  const movs=data||[], total=movs.reduce((a,m)=>a+(+m.preco_total||0),0), semPreco=movs.filter(m=>!m.preco_total||+m.preco_total===0).length;
+  const movs=data||[];
+  _fiadoCache=movs;
+  const totalRestante=movs.reduce((a,m)=>a+Math.max(0,(+m.preco_total||0)-(+m.valor_pago||0)),0);
+  const semPreco=movs.filter(m=>!m.preco_total||+m.preco_total===0).length;
   const badge=document.getElementById('fiado-total-badge');
-  badge.textContent=movs.length?`${movs.length} pendente${movs.length>1?'s':''} · ${R$(total)}${semPreco?' ('+semPreco+' sem preço)':''}` :'';
+  badge.textContent=movs.length?`${movs.length} pendente${movs.length>1?'s':''} · ${R$(totalRestante)}${semPreco?' ('+semPreco+' sem preço)':''}` :'';
   if(!movs.length){el.innerHTML='<div class="vazio"><div class="vazio-i">✅</div>Nenhum fiado pendente!</div>';return;}
   const fmtDt=s=>new Date(s).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
-  el.innerHTML=movs.map(m=>`<div class="item" style="border-left:3px solid var(--r);margin-bottom:8px"><div class="item-body"><div class="item-nome" style="display:flex;align-items:center;gap:8px"><span style="background:var(--rbg);color:var(--r);font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px">FIADO</span>${m.fiado_nome||m.cliente||'Sem nome'}</div><div class="item-det">${m.produto_nome||'—'} · ${KG(m.qty_kg)} kg · ${fmtDt(m.criado_em)}</div><div class="item-det">${m.vendedor||''} ${m.local?' · '+m.local:''}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0"><div class="item-val r">${m.preco_total?R$(m.preco_total):'—'}</div><button class="btn-sm btn-sm-g" style="font-size:12px" onclick="abrirMarcarPago('${m.id}','${(m.fiado_nome||m.cliente||'').replace(/'/g,"\\'")}',${m.preco_total||0})">✓ Pago</button></div></div>`).join('');
+  el.innerHTML=movs.map(m=>{
+    const total=+m.preco_total||0, pago=+m.valor_pago||0, restante=Math.max(0,total-pago);
+    const pagoInfo = pago>0.001 ? `<div class="item-det" style="color:var(--g2)">Já pago: ${R$(pago)} · Restante: ${R$(restante)}</div>` : '';
+    return `<div class="item" style="border-left:3px solid var(--r);margin-bottom:8px"><div class="item-body"><div class="item-nome" style="display:flex;align-items:center;gap:8px"><span style="background:var(--rbg);color:var(--r);font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px">FIADO</span>${m.fiado_nome||m.cliente||'Sem nome'}</div><div class="item-det">${m.produto_nome||'—'} · ${KG(m.qty_kg)} kg · ${fmtDt(m.criado_em)}</div><div class="item-det">${m.vendedor||''} ${m.local?' · '+m.local:''}</div>${pagoInfo}</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0"><div class="item-val r">${restante?R$(restante):'—'}</div><button class="btn-sm btn-sm-g" style="font-size:12px" onclick="abrirMarcarPago('${m.id}')">💰 Pagamento</button></div></div>`;
+  }).join('');
 }
-function abrirMarcarPago(id,nome,valor){ document.getElementById('pago-id').value=id; document.getElementById('pago-conta').value=''; document.getElementById('pago-obs').value=''; document.getElementById('pago-info').innerHTML=`<strong>${nome}</strong> · ${R$(valor)}`; abrir('ov-pago'); }
-async function confirmarPagamento(){ const id=document.getElementById('pago-id').value, conta=document.getElementById('pago-conta').value, obs=document.getElementById('pago-obs').value.trim(); if(!conta){alert('Informe a conta que recebeu o pagamento.');return;} const{error}=await SB.from('movimentacoes').update({fiado_pago:true,conta,fiado_pago_em:agoraLocal(),descricao:obs||null}).eq('id',id); if(error){alert('Erro: '+error.message);return;} fechar('ov-pago'); await carregarFiado(); await carregarDados(); toast('✅ Pagamento registrado!'); }
+function abrirMarcarPago(id){
+  const m=_fiadoCache.find(x=>x.id===id); if(!m) return;
+  const total=+m.preco_total||0, pago=+m.valor_pago||0, restante=Math.max(0,total-pago);
+  document.getElementById('pago-id').value=id;
+  document.getElementById('pago-conta').value='';
+  document.getElementById('pago-obs').value='';
+  document.getElementById('pago-valor').value=restante>0?restante.toFixed(2):'';
+  document.getElementById('pago-info').innerHTML=`<strong>${m.fiado_nome||m.cliente||''}</strong><br>Total: ${R$(total)}${pago>0.001?' · Já pago: '+R$(pago):''}<br>Restante: <strong>${R$(restante)}</strong>`;
+  abrir('ov-pago');
+}
+async function confirmarPagamento(){
+  const id=document.getElementById('pago-id').value, conta=document.getElementById('pago-conta').value, obs=document.getElementById('pago-obs').value.trim();
+  const valorStr=document.getElementById('pago-valor').value;
+  if(!conta){alert('Informe a conta que recebeu o pagamento.');return;}
+  const m=_fiadoCache.find(x=>x.id===id);
+  if(!m){alert('Registro não encontrado. Atualize a lista e tente novamente.');return;}
+  const total=+m.preco_total||0, pagoAntes=+m.valor_pago||0, restante=Math.max(0,total-pagoAntes);
+  const valor=parseFloat((valorStr||'').replace(',','.'));
+  if(!valor||valor<=0){alert('Informe um valor de pagamento válido.');return;}
+  if(valor>restante+0.01){alert('O valor não pode ser maior que o restante ('+R$(restante)+').');return;}
+  const novoPago=pagoAntes+valor, quitado=novoPago>=total-0.005;
+  const{data:{user:_uPg}}=await SB.auth.getUser();
+  const uid=_uPg?.id||null, uemail=_uPg?.email||null;
+  const{error:errUp}=await SB.from('movimentacoes').update({
+    valor_pago:novoPago,
+    fiado_pago:quitado,
+    fiado_pago_em:quitado?agoraLocal():null,
+    conta:quitado?conta:null,
+    descricao:obs||null
+  }).eq('id',id);
+  if(errUp){alert('Erro: '+errUp.message);return;}
+  const{error:errPag}=await SB.from('pagamentos_fiado').insert({movimentacao_id:id,valor,conta,obs:obs||null,user_id:uid,user_email:uemail});
+  if(errPag){console.error(errPag);}
+  fechar('ov-pago');
+  await carregarFiado(); await carregarDados();
+  toast(quitado?'✅ Pagamento total registrado!':'💰 Pagamento parcial registrado — restante: '+R$(total-novoPago));
+}
 
 // ─── RELATÓRIO ───────────────────────────────────────────────
 let _dadosCache=[], _usuariosMap={};
