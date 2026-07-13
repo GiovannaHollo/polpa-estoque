@@ -145,6 +145,31 @@
     .local-prod-row:last-child{border-bottom:none}
     .local-prod-nome{color:var(--tx)}
     .local-prod-kg{font-family:'DM Mono',monospace;color:var(--g2);font-weight:600}
+    /* PEDIDOS (novo) */
+    .pedido-card{background:var(--sf);border-radius:var(--rs);border:1px solid var(--bd);margin-bottom:8px;overflow:hidden}
+    .pedido-hd{display:flex;align-items:center;gap:12px;padding:.85rem 1rem;cursor:pointer}
+    .pedido-hd:active{background:var(--bg)}
+    .pedido-num{font-family:'DM Mono',monospace;font-size:13px;font-weight:600;color:var(--mu);background:var(--bg);border-radius:6px;padding:3px 8px;flex-shrink:0}
+    .pedido-info{flex:1;min-width:0}
+    .pedido-cliente{font-size:14px;font-weight:500;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .pedido-det{font-size:12px;color:var(--mu);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .pedido-valores{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0}
+    .pedido-total{font-size:15px;font-weight:600;font-family:'DM Mono',monospace}
+    .pedido-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px}
+    .pedido-badge.pago{background:var(--gbg);color:var(--gtx)}
+    .pedido-badge.fiado{background:var(--rbg);color:var(--r)}
+    .pedido-badge.parcial{background:#fff8e6;color:#92600a}
+    .pedido-chevron{font-size:12px;color:var(--mu);transition:transform .2s;flex-shrink:0}
+    .pedido-card.aberto .pedido-chevron{transform:rotate(90deg)}
+    .pedido-itens{display:none;border-top:1px solid var(--bd);background:var(--bg)}
+    .pedido-card.aberto .pedido-itens{display:block}
+    .pedido-item-row{display:flex;justify-content:space-between;align-items:center;padding:.6rem 1rem;border-bottom:1px solid var(--bd);font-size:13px}
+    .pedido-item-row:last-child{border-bottom:none}
+    .pedido-item-nome{color:var(--tx)}
+    .pedido-item-det{font-size:11px;color:var(--mu);margin-top:1px}
+    .pedido-item-val{font-family:'DM Mono',monospace;color:var(--tx);font-weight:500}
+    .pedido-pagamento-info{padding:.6rem 1rem;font-size:12px;color:var(--mu);border-top:1px dashed var(--bd)}
+    .pedido-acoes-wrap{padding:.6rem 1rem;border-top:1px solid var(--bd);display:flex;justify-content:flex-end}
   </style>
 </head>
 <body>
@@ -323,10 +348,8 @@
         <div id="r-chart-nc"></div>
       </div>
       <div class="bloco" id="r-bloco-tab" style="display:none">
-        <div class="bloco-titulo">Movimentações do período</div>
-        <div class="tabela-wrap">
-          <table><thead><tr><th>Data</th><th>Tipo</th><th>Produto</th><th>Vendedor</th><th>Conta</th><th>Estoque</th><th>Cliente</th><th>Usuário</th><th style="text-align:right">Kg</th><th style="text-align:right">Valor</th></tr></thead><tbody id="r-tbody"></tbody></table>
-        </div>
+        <div class="bloco-titulo">Pedidos do período</div>
+        <div id="r-pedidos-lista"></div>
       </div>
     </div>
     <div class="footer">Dados sincronizados em tempo real</div>
@@ -335,7 +358,7 @@
   <div class="tab" id="tab-fiado">
     <div class="page-pad">
       <div class="sec-header">
-        <div class="sec-title">Vendas fiadas pendentes</div>
+        <div class="sec-title">Pedidos fiados pendentes</div>
         <div id="fiado-total-badge" style="font-size:13px;font-weight:600;color:var(--r)"></div>
       </div>
       <div id="lista-fiado"><div class="vazio"><div class="vazio-i">⏳</div>Carregando...</div></div>
@@ -405,6 +428,7 @@
     </div>
     <div class="f"><label>Observação (opcional)</label><input type="text" id="pago-obs" placeholder="Ex: Pago em dinheiro"/></div>
     <input type="hidden" id="pago-id"/>
+    <input type="hidden" id="pago-tipo" value="pedido"/>
     <div class="modal-btns">
       <button class="btn-cancel" onclick="fechar('ov-pago')">Cancelar</button>
       <button class="btn-ok-g" onclick="confirmarPagamento()">Registrar pagamento</button>
@@ -465,6 +489,7 @@ const LABEL = {pote:'Pote',sache:'Sachê',pacote:'Pacote',outro:'Outro'};
 const R$ = n => (+n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const KG = n => (+n||0).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
 const NOW_ISO = () => { const d=new Date(),p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; };
+const PEDNUM = n => n===null||n===undefined ? '#—' : '#'+String(n).padStart(3,'0');
 
 // ✅ CORRIGIDO: inclui offset de fuso horário para gravar horário correto no Supabase
 const agoraLocal = () => { const d=new Date(),off=-d.getTimezoneOffset(),sign=off>=0?'+':'-',ph=String(Math.floor(Math.abs(off)/60)).padStart(2,'0'),pm=String(Math.abs(off)%60).padStart(2,'0'),p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}${sign}${ph}:${pm}`; };
@@ -476,7 +501,6 @@ let clientes = [];
 let _saldoCache = [];
 let _clientesCarregados = false;
 let _vendaTotalAtual = 0;
-let _fiadoCache = [];
 
 // ─── TOGGLE VISUALIZAÇÃO ESTOQUE ────────────────────────────
 let _vizEstoque = 'produto';
@@ -872,38 +896,74 @@ async function confirmarVenda(){
     reservas[p.id].reservado+=kgSol;
   }
   const btn=document.getElementById('btn-vd'); btn.innerHTML='<span class="spinner"></span>Salvando...'; btn.disabled=true;
-  // ✅ CORRIGIDO: grava user_email do usuário logado
   const {data:{user:_uVd}}=await SB.auth.getUser();
   const uid=_uVd?.id||null, uemail=_uVd?.email||null, tsVenda=agoraLocal();
-  let somaDistribuida=0;
+
+  // 1) status e valor pago do PEDIDO (cabeçalho)
+  let statusPedido, valorPagoPedido;
+  if(!isFiado){ statusPedido='pago'; valorPagoPedido=totalGeral; }
+  else if(valorPagoAgora>=totalGeral-0.005){ statusPedido='pago'; valorPagoPedido=totalGeral; }
+  else if(valorPagoAgora>0.001){ statusPedido='parcial'; valorPagoPedido=valorPagoAgora; }
+  else { statusPedido='fiado'; valorPagoPedido=0; }
+
+  // 2) cria o PEDIDO (cabeçalho)
+  const{data:pedidoIns,error:errPedido}=await SB.from('pedidos').insert({
+    cliente:clienteNome||null, cliente_id:_clienteSelecionadoId||null, vendedor:vendedor||null,
+    conta:(!isFiado||valorPagoAgora>0.001)?(conta||null):null, local:localVenda,
+    valor_total:totalGeral, valor_pago:valorPagoPedido, fiado:isFiado, status:statusPedido,
+    descricao:obs||null, user_id:uid, user_email:uemail, criado_em:tsVenda,
+    fiado_pago_em: statusPedido==='pago'?tsVenda:null
+  }).select('id,numero').single();
+  if(errPedido){alert('Erro ao criar pedido: '+errPedido.message); btn.innerHTML='<span>📤</span><div><div>Confirmar venda</div><div class="btn-sub">Desconta do estoque</div></div>'; btn.disabled=false; return;}
+  const pedidoId=pedidoIns.id;
+
+  // 3) cria as linhas de produto em movimentacoes, todas ligadas ao pedido
+  let _somaDistribCriacao=0;
   const registros=linhasValidas.map((l,idx)=>{
     const p=produtos.find(x=>x.id===l.prodId);
     const qty_kg=(p.peso_g*l.qtd)/1000, preco_total=(l.preco||0)*l.qtd;
-    let valor_pago_linha;
-    if(!isFiado){
-      valor_pago_linha=preco_total;
-    } else if(totalGeral>0.001){
-      const isUltima = idx===linhasValidas.length-1;
-      valor_pago_linha = isUltima ? Math.max(0, Math.round((valorPagoAgora - somaDistribuida)*100)/100)
-                                   : Math.round((valorPagoAgora*(preco_total/totalGeral))*100)/100;
-      somaDistribuida += valor_pago_linha;
+    // valor já pago no ato (se houver), distribuído proporcionalmente entre os produtos do pedido —
+    // mantém compatibilidade com a versão anterior, que lia esse valor por linha em movimentacoes.
+    let valorPagoLinha;
+    if(statusPedido==='pago'){
+      valorPagoLinha=preco_total;
+    } else if(statusPedido==='parcial' && totalGeral>0.001){
+      const isUltima=idx===linhasValidas.length-1;
+      valorPagoLinha = isUltima
+        ? Math.max(0, Math.round((valorPagoAgora-_somaDistribCriacao)*100)/100)
+        : Math.round((valorPagoAgora*(preco_total/totalGeral))*100)/100;
+      _somaDistribCriacao+=valorPagoLinha;
     } else {
-      valor_pago_linha = 0;
+      valorPagoLinha=0;
     }
-    const linhaQuitada = isFiado ? (valor_pago_linha >= preco_total-0.005) : true;
     return {tipo:'saida',qty_kg,produto_id:p.id,produto_nome:p.nome,unidades:l.qtd,preco_total,
       vendedor:vendedor||null,conta:(!isFiado||valorPagoAgora>0.001)?(conta||null):null,cliente:clienteNome||null,
       cliente_id:_clienteSelecionadoId||null,descricao:obs||null,user_id:uid,user_email:uemail,local:localVenda,
-      fiado:isFiado,fiado_nome:isFiado?clienteNome||null:null,
-      fiado_pago:isFiado?linhaQuitada:null,
-      valor_pago:valor_pago_linha,
-      fiado_pago_em:(isFiado&&linhaQuitada)?tsVenda:null,criado_em:tsVenda};
+      pedido_id:pedidoId,
+      fiado:isFiado, fiado_nome:isFiado?clienteNome||null:null,
+      fiado_pago: statusPedido==='pago',
+      valor_pago: valorPagoLinha,
+      fiado_pago_em:statusPedido==='pago'?tsVenda:null, criado_em:tsVenda};
   });
-  const{data:inseridos,error:errVenda}=await SB.from('movimentacoes').insert(registros).select('id,preco_total,valor_pago');
-  if(errVenda){alert('Erro ao salvar: '+errVenda.message); btn.innerHTML='<span>📤</span><div><div>Confirmar venda</div><div class="btn-sub">Desconta do estoque</div></div>'; btn.disabled=false; return;}
-  if(isFiado && valorPagoAgora>0.001 && inseridos){
-    const pagamentos=inseridos.filter(r=>+r.valor_pago>0.001).map(r=>({movimentacao_id:r.id,valor:+r.valor_pago,conta:conta||null,obs:'Pagamento no ato da venda',user_id:uid,user_email:uemail}));
-    if(pagamentos.length){ const{error:errPag}=await SB.from('pagamentos_fiado').insert(pagamentos); if(errPag) console.error(errPag); }
+  const{error:errVenda}=await SB.from('movimentacoes').insert(registros);
+  if(errVenda){
+    await SB.from('pedidos').delete().eq('id',pedidoId); // desfaz o cabeçalho — como o número ainda não foi atribuído, nenhum número é "perdido"
+    alert('Erro ao salvar: '+errVenda.message); btn.innerHTML='<span>📤</span><div><div>Confirmar venda</div><div class="btn-sub">Desconta do estoque</div></div>'; btn.disabled=false; return;
+  }
+  // 4) SÓ AGORA, com o pedido e os itens já gravados com sucesso, atribui o número sequencial.
+  // Isso garante que nenhum número seja "consumido" se algo falhar antes deste ponto.
+  let pedidoNumero=null;
+  const{data:numData,error:errNum}=await SB.rpc('pedidos_proximo_numero');
+  if(!errNum && numData){
+    pedidoNumero=numData;
+    const{error:errUpNum}=await SB.from('pedidos').update({numero:pedidoNumero}).eq('id',pedidoId);
+    if(errUpNum){ console.error('Erro ao gravar número do pedido:',errUpNum); pedidoNumero=null; }
+  } else {
+    console.error('Erro ao gerar número do pedido:',errNum);
+  }
+  if(isFiado && valorPagoAgora>0.001){
+    const{error:errPag}=await SB.from('pagamentos_fiado').insert({pedido_id:pedidoId,valor:valorPagoAgora,conta:conta||null,obs:'Pagamento no ato da venda',user_id:uid,user_email:uemail});
+    if(errPag) console.error(errPag);
   }
   resetVenda(); ['vd-cliente','vd-obs'].forEach(id=>document.getElementById(id).value='');
   iniciarLinhasVenda(); btn.innerHTML='<span>📤</span><div><div>Confirmar venda</div><div class="btn-sub">Desconta do estoque</div></div>'; btn.disabled=false;
@@ -915,7 +975,7 @@ async function confirmarVenda(){
     else msgExtra=' · Pago: '+R$(valorPagoAgora)+' · Fiado: '+R$(totalGeral-valorPagoAgora);
   }
   const total=linhasValidas.reduce((a,l)=>{const p=produtos.find(x=>x.id===l.prodId);return a+(p?p.peso_g*l.qtd/1000:0);},0);
-  toast('✓ Venda registrada — '+KG(total)+' kg'+msgExtra);
+  toast('✓ Pedido '+(pedidoNumero?PEDNUM(pedidoNumero):'(nº pendente)')+' registrado — '+KG(total)+' kg'+msgExtra);
 }
 
 // ─── DADOS / ESTOQUE ─────────────────────────────────────────
@@ -1039,7 +1099,6 @@ async function confirmarTransferencia(){
   const dispOrigem=Math.max(0,(saldoTr||[]).reduce((a,s)=>a+ +s.saldo_kg,0));
   if(kg>dispOrigem+0.001){alert(`Estoque insuficiente em ${origem}!\nDisponível: ${KG(dispOrigem)} kg\nSolicitado: ${KG(kg)} kg`);return;}
   const btn=document.getElementById('btn-tr'); btn.innerHTML='<span class="spinner"></span><div><div>Salvando...</div></div>'; btn.disabled=true;
-  // ✅ CORRIGIDO: grava user_email do usuário logado
   const {data:{user:_uTr}}=await SB.auth.getUser();
   const uid=_uTr?.id||null, uemail=_uTr?.email||null, ts=agoraLocal();
   const{error:errT}=await SB.from('movimentacoes').insert([
@@ -1053,7 +1112,340 @@ async function confirmarTransferencia(){
   await carregarDados(); irPara('estoque'); toast(`✓ ${KG(kg)} kg transferidos: ${origem} → ${destino}`);
 }
 
-// ─── FIADO ───────────────────────────────────────────────────
+// ─── FIADO (pedidos novos + fiados antigos/legado, sem perder nada) ──
+let _pedidosFiadoCache=[];
+let _pedidosFiadoItens={};
+let _movsFiadoCache=[]; // fiados antigos, gravados direto em movimentacoes (sem pedido)
+async function carregarFiado(){
+  const el=document.getElementById('lista-fiado'); el.innerHTML='<div class="vazio"><div class="vazio-i">⏳</div>Carregando...</div>';
+  const [rPed,rMov]=await Promise.all([
+    SB.from('pedidos').select('*').in('status',['fiado','parcial']).order('criado_em',{ascending:false}),
+    SB.from('movimentacoes').select('*').eq('tipo','saida').eq('fiado',true).eq('fiado_pago',false).is('pedido_id',null).order('criado_em',{ascending:false})
+  ]);
+  if(rPed.error||rMov.error){el.innerHTML='<div class="vazio">Erro ao carregar.</div>';return;}
+  _pedidosFiadoCache=rPed.data||[];
+  _movsFiadoCache=rMov.data||[];
+  const totalPed=_pedidosFiadoCache.reduce((a,p)=>a+Math.max(0,(+p.valor_total||0)-(+p.valor_pago||0)),0);
+  const totalMov=_movsFiadoCache.reduce((a,m)=>a+Math.max(0,(+m.preco_total||0)-(+m.valor_pago||0)),0);
+  const qtd=_pedidosFiadoCache.length+_movsFiadoCache.length;
+  const badge=document.getElementById('fiado-total-badge');
+  badge.textContent=qtd?`${qtd} pendente${qtd>1?'s':''} · ${R$(totalPed+totalMov)}`:'';
+  if(!qtd){el.innerHTML='<div class="vazio"><div class="vazio-i">✅</div>Nenhum fiado pendente!</div>';return;}
+  const ids=_pedidosFiadoCache.map(p=>p.id);
+  let itens=[];
+  if(ids.length){ const{data}=await SB.from('movimentacoes').select('pedido_id,produto_nome,unidades,qty_kg,preco_total').in('pedido_id',ids); itens=data||[]; }
+  _pedidosFiadoItens={};
+  itens.forEach(it=>{ (_pedidosFiadoItens[it.pedido_id]=_pedidosFiadoItens[it.pedido_id]||[]).push(it); });
+  // combina pedidos novos + fiados antigos, ordenados por data (nada é escondido)
+  const combinados=[
+    ..._pedidosFiadoCache.map(p=>({data:p.criado_em,html:renderPedidoCard(p,true)})),
+    ..._movsFiadoCache.map(m=>({data:m.criado_em,html:renderFiadoLegadoCard(m)})),
+  ].sort((a,b)=>new Date(b.data)-new Date(a.data));
+  el.innerHTML=combinados.map(c=>c.html).join('');
+}
+const fmtDtPed=s=>new Date(s).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+function renderPedidoCard(p, comAcaoPagamento){
+  const total=+p.valor_total||0, pago=+p.valor_pago||0, restante=Math.max(0,total-pago);
+  const itens=_pedidosFiadoItens[p.id]||[];
+  const badgeCls=p.status==='pago'?'pago':p.status==='parcial'?'parcial':'fiado';
+  const badgeTxt=p.status==='pago'?'PAGO':p.status==='parcial'?'PARCIAL':'FIADO';
+  const itensHtml=itens.map(it=>`<div class="pedido-item-row"><div><div class="pedido-item-nome">${it.produto_nome||'—'}</div><div class="pedido-item-det">${it.unidades||''} un. · ${KG(it.qty_kg)} kg</div></div><div class="pedido-item-val">${it.preco_total?R$(it.preco_total):'—'}</div></div>`).join('');
+  const pagInfo = pago>0.001 ? `<div class="pedido-pagamento-info">Já pago: <strong>${R$(pago)}</strong> · Restante: <strong style="color:var(--r)">${R$(restante)}</strong></div>` : '';
+  const acao = comAcaoPagamento ? `<div class="pedido-acoes-wrap"><button class="btn-sm btn-sm-g" onclick="event.stopPropagation();abrirMarcarPago('${p.id}')">💰 Registrar pagamento</button></div>` : '';
+  return `<div class="pedido-card" id="pedcard-${p.id}">
+    <div class="pedido-hd" onclick="togglePedidoEl('pedcard-${p.id}')">
+      <span class="pedido-num">${PEDNUM(p.numero)}</span>
+      <div class="pedido-info">
+        <div class="pedido-cliente">${p.cliente||p.fiado_nome||'Sem cliente'}</div>
+        <div class="pedido-det">${p.vendedor||''}${p.local?' · '+p.local:''} · ${fmtDtPed(p.criado_em)}</div>
+      </div>
+      <div class="pedido-valores">
+        <span class="pedido-total">${R$(total)}</span>
+        <span class="pedido-badge ${badgeCls}">${badgeTxt}</span>
+      </div>
+      <span class="pedido-chevron">▶</span>
+    </div>
+    <div class="pedido-itens">${itensHtml}${pagInfo}${acao}</div>
+  </div>`;
+}
+// Card para fiados antigos (gravados antes da mudança, direto em movimentacoes, sem pedido)
+function renderFiadoLegadoCard(m){
+  const total=+m.preco_total||0, pago=+m.valor_pago||0, restante=Math.max(0,total-pago);
+  const pagInfo = pago>0.001 ? `<div class="pedido-pagamento-info">Já pago: <strong>${R$(pago)}</strong> · Restante: <strong style="color:var(--r)">${R$(restante)}</strong></div>` : '';
+  return `<div class="pedido-card" id="movcard-${m.id}">
+    <div class="pedido-hd" onclick="togglePedidoEl('movcard-${m.id}')">
+      <span class="pedido-num" title="Registro antigo, sem número de pedido">ANTIGO</span>
+      <div class="pedido-info">
+        <div class="pedido-cliente">${m.fiado_nome||m.cliente||'Sem nome'}</div>
+        <div class="pedido-det">${m.produto_nome||'—'} · ${KG(m.qty_kg)} kg · ${m.vendedor||''}${m.local?' · '+m.local:''} · ${fmtDtPed(m.criado_em)}</div>
+      </div>
+      <div class="pedido-valores">
+        <span class="pedido-total">${R$(total)}</span>
+        <span class="pedido-badge fiado">FIADO</span>
+      </div>
+      <span class="pedido-chevron">▶</span>
+    </div>
+    <div class="pedido-itens">${pagInfo}<div class="pedido-acoes-wrap"><button class="btn-sm btn-sm-g" onclick="event.stopPropagation();abrirMarcarPagoLegado('${m.id}')">💰 Registrar pagamento</button></div></div>
+  </div>`;
+}
+function togglePedidoEl(domId){ const card=document.getElementById(domId); if(card) card.classList.toggle('aberto'); }
+function abrirMarcarPago(id){
+  const p=_pedidosFiadoCache.find(x=>x.id===id); if(!p) return;
+  const total=+p.valor_total||0, pago=+p.valor_pago||0, restante=Math.max(0,total-pago);
+  document.getElementById('pago-tipo').value='pedido';
+  document.getElementById('pago-id').value=id;
+  document.getElementById('pago-conta').value='';
+  document.getElementById('pago-obs').value='';
+  document.getElementById('pago-valor').value=restante>0?restante.toFixed(2):'';
+  document.getElementById('pago-info').innerHTML=`<strong>${PEDNUM(p.numero)} — ${p.cliente||''}</strong><br>Total: ${R$(total)}${pago>0.001?' · Já pago: '+R$(pago):''}<br>Restante: <strong>${R$(restante)}</strong>`;
+  abrir('ov-pago');
+}
+function abrirMarcarPagoLegado(id){
+  const m=_movsFiadoCache.find(x=>x.id===id) || (_dadosCache||[]).find(x=>x.id===id); if(!m) return;
+  const total=+m.preco_total||0, pago=+m.valor_pago||0, restante=Math.max(0,total-pago);
+  document.getElementById('pago-tipo').value='legado';
+  document.getElementById('pago-id').value=id;
+  document.getElementById('pago-conta').value='';
+  document.getElementById('pago-obs').value='';
+  document.getElementById('pago-valor').value=restante>0?restante.toFixed(2):'';
+  document.getElementById('pago-info').innerHTML=`<strong>${m.fiado_nome||m.cliente||''}</strong> <span style="font-size:11px;color:var(--mu)">(registro antigo)</span><br>Total: ${R$(total)}${pago>0.001?' · Já pago: '+R$(pago):''}<br>Restante: <strong>${R$(restante)}</strong>`;
+  abrir('ov-pago');
+}
+async function confirmarPagamento(){
+  const tipo=document.getElementById('pago-tipo').value||'pedido';
+  const id=document.getElementById('pago-id').value, conta=document.getElementById('pago-conta').value, obs=document.getElementById('pago-obs').value.trim();
+  const valorStr=document.getElementById('pago-valor').value;
+  if(!conta){alert('Informe a conta que recebeu o pagamento.');return;}
+  const valor=parseFloat((valorStr||'').replace(',','.'));
+  if(!valor||valor<=0){alert('Informe um valor de pagamento válido.');return;}
+  const{data:{user:_uPg}}=await SB.auth.getUser();
+  const uid=_uPg?.id||null, uemail=_uPg?.email||null;
+
+  if(tipo==='legado'){
+    const m=_movsFiadoCache.find(x=>x.id===id) || (_dadosCache||[]).find(x=>x.id===id);
+    if(!m){alert('Registro não encontrado. Atualize a lista e tente novamente.');return;}
+    const total=+m.preco_total||0, pagoAntes=+m.valor_pago||0, restante=Math.max(0,total-pagoAntes);
+    if(valor>restante+0.01){alert('O valor não pode ser maior que o restante ('+R$(restante)+').');return;}
+    const novoPago=pagoAntes+valor, quitado=novoPago>=total-0.005;
+    const{error:errUp}=await SB.from('movimentacoes').update({
+      valor_pago:novoPago, fiado_pago:quitado, fiado_pago_em:quitado?agoraLocal():null,
+      conta:quitado?conta:m.conta, descricao:obs||m.descricao
+    }).eq('id',id);
+    if(errUp){alert('Erro: '+errUp.message);return;}
+    const{error:errPag}=await SB.from('pagamentos_fiado').insert({movimentacao_id:id,valor,conta,obs:obs||null,user_id:uid,user_email:uemail});
+    if(errPag){console.error(errPag);}
+    fechar('ov-pago'); await carregarFiado(); await carregarDados();
+    toast(quitado?'✅ Pagamento total registrado!':'💰 Pagamento parcial registrado — restante: '+R$(total-novoPago));
+    return;
+  }
+
+  const p=_pedidosFiadoCache.find(x=>x.id===id);
+  if(!p){alert('Pedido não encontrado. Atualize a lista e tente novamente.');return;}
+  const total=+p.valor_total||0, pagoAntes=+p.valor_pago||0, restante=Math.max(0,total-pagoAntes);
+  if(valor>restante+0.01){alert('O valor não pode ser maior que o restante ('+R$(restante)+').');return;}
+  const novoPago=pagoAntes+valor, quitado=novoPago>=total-0.005;
+  const novoStatus=quitado?'pago':'parcial';
+  const{error:errUp}=await SB.from('pedidos').update({
+    valor_pago:novoPago, status:novoStatus,
+    fiado_pago_em:quitado?agoraLocal():null,
+    conta:quitado?conta:p.conta,
+    descricao:obs||p.descricao
+  }).eq('id',id);
+  if(errUp){alert('Erro: '+errUp.message);return;}
+
+  // Sincroniza o valor pago também nas linhas de movimentacoes (mesmo campo que a versão anterior usava),
+  // distribuído proporcionalmente entre os produtos do pedido — assim, se você voltar pra versão sem
+  // pedidos, o valor já pago não "some", nem em pagamentos parciais.
+  const{data:itensPedido,error:errItens}=await SB.from('movimentacoes').select('id,preco_total').eq('pedido_id',id);
+  if(errItens){ console.error('Erro ao buscar itens do pedido para sincronizar pagamento:',errItens); }
+  else if(itensPedido && itensPedido.length){
+    const totalItens=itensPedido.reduce((a,it)=>a+(+it.preco_total||0),0);
+    let somaDistribuida=0;
+    const updates=itensPedido.map((it,idx)=>{
+      const precoTotal=+it.preco_total||0;
+      let valorPagoLinha;
+      if(totalItens>0.001){
+        const isUltima=idx===itensPedido.length-1;
+        valorPagoLinha = isUltima
+          ? Math.max(0, Math.round((novoPago-somaDistribuida)*100)/100)
+          : Math.round((novoPago*(precoTotal/totalItens))*100)/100;
+        somaDistribuida+=valorPagoLinha;
+      } else {
+        valorPagoLinha=0;
+      }
+      const linhaQuitada = valorPagoLinha >= precoTotal-0.005;
+      return {id:it.id, valor_pago:valorPagoLinha, fiado_pago:linhaQuitada, fiado_pago_em:linhaQuitada?agoraLocal():null};
+    });
+    await Promise.all(updates.map(u=>
+      SB.from('movimentacoes').update({valor_pago:u.valor_pago, fiado_pago:u.fiado_pago, fiado_pago_em:u.fiado_pago_em}).eq('id',u.id)
+    ));
+  }
+
+  const{error:errPag}=await SB.from('pagamentos_fiado').insert({pedido_id:id,valor,conta,obs:obs||null,user_id:uid,user_email:uemail});
+  if(errPag){console.error(errPag);}
+  fechar('ov-pago');
+  await carregarFiado(); await carregarDados();
+  toast(quitado?'✅ Pagamento total registrado!':'💰 Pagamento parcial registrado — restante: '+R$(total-novoPago));
+}
+
+// ─── RELATÓRIO ───────────────────────────────────────────────
+let _dadosCache=[], _usuariosMap={}, _pedidosRelCache=[], _itensRelCache={};
+let _relPagina=0, _relListaCompleta=[];
+const _REL_POR_PAG=50;
+
+// Busca TODAS as linhas de uma consulta, em blocos de 1000 (limite padrão do Supabase por requisição).
+// Sem isso, períodos com muitos registros (ex: "Este ano") podem vir truncados silenciosamente,
+// fazendo os totais do relatório saírem errados sem nenhum aviso de erro.
+async function fetchTudo(construirQuery){
+  let tudo=[], from=0; const TAM=1000;
+  while(true){
+    const{data,error}=await construirQuery().range(from, from+TAM-1);
+    if(error) return {data:null, error};
+    tudo=tudo.concat(data||[]);
+    if(!data || data.length<TAM) break;
+    from+=TAM;
+  }
+  return {data:tudo, error:null};
+}
+
+function atalho(tipo,btn){
+  document.querySelectorAll('.atalho').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+  const p=n=>String(n).padStart(2,'0'), iso=d=>`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`, hj=new Date();
+  let de, ate=iso(hj);
+  if(tipo==='hoje') de=iso(hj);
+  else if(tipo==='semana'){const d=new Date(hj);d.setDate(d.getDate()-6);de=iso(d);}
+  else if(tipo==='mes') de=`${hj.getFullYear()}-${p(hj.getMonth()+1)}-01`;
+  else if(tipo==='mes_ant'){const m=new Date(hj.getFullYear(),hj.getMonth()-1,1),f=new Date(hj.getFullYear(),hj.getMonth(),0);de=iso(m);ate=iso(f);}
+  else if(tipo==='ano') de=`${hj.getFullYear()}-01-01`;
+  document.getElementById('r-de').value=de; document.getElementById('r-ate').value=ate; gerarRelatorio();
+}
+async function gerarRelatorio(){
+  const de=document.getElementById('r-de').value, ate=document.getElementById('r-ate').value; if(!de||!ate) return;
+  const btn=document.getElementById('btn-rel'); btn.innerHTML='<span class="spinner"></span><div><div>Carregando...</div></div>'; btn.disabled=true;
+  const cols='id,tipo,qty_kg,produto_nome,unidades,preco_total,vendedor,conta,cliente,local,user_id,user_email,is_transferencia,pedido_id,fiado,fiado_pago,fiado_nome,valor_pago,criado_em,descricao';
+  const{data:todos,error:e1}=await fetchTudo(()=>SB.from('movimentacoes').select(cols)
+    .gte('criado_em', de + 'T00:00:00-03:00').lte('criado_em', ate + 'T23:59:59-03:00')
+    .order('criado_em',{ascending:false}));
+  const{data:pedidosPeriodo,error:e2}=await fetchTudo(()=>SB.from('pedidos').select('*')
+    .gte('criado_em', de + 'T00:00:00-03:00').lte('criado_em', ate + 'T23:59:59-03:00')
+    .order('criado_em',{ascending:false}));
+  btn.innerHTML='<span>📊</span><div><div>Gerar relatório</div><div class="btn-sub">Atualizar dados</div></div>'; btn.disabled=false;
+  if(e1||e2){toast('Erro ao carregar relatório.');return;}
+  _dadosCache=todos||[]; _pedidosRelCache=pedidosPeriodo||[];
+  _itensRelCache={};
+  _dadosCache.filter(m=>m.pedido_id).forEach(m=>{ (_itensRelCache[m.pedido_id]=_itensRelCache[m.pedido_id]||[]).push(m); });
+  const{data:{user}}=await SB.auth.getUser();
+  if(user){const prefixo=user.email?.split('@')[0]||'eu';_usuarioAtual=prefixo;_usuariosMap[user.id]=prefixo;}
+  _relPagina=0;
+  renderRelatorio(_dadosCache, _pedidosRelCache);
+}
+function renderRelatorio(data, pedidosPeriodo){
+  const show=id=>document.getElementById(id).style.display='block';
+  const NC_CONTAS=['Amostra','Uso próprio'];
+  const entradas=data.filter(m=>m.tipo==='entrada'&&!m.is_transferencia);
+  const saidas  =data.filter(m=>m.tipo==='saida'  &&!m.is_transferencia);
+  const saidasNC   =saidas.filter(m=>NC_CONTAS.includes(m.conta));
+  const saidasCom  =saidas.filter(m=>!NC_CONTAS.includes(m.conta));
+
+  const pedidosPagos = pedidosPeriodo.filter(p=>p.status==='pago');
+  const pedidosPendentes = pedidosPeriodo.filter(p=>p.status==='fiado'||p.status==='parcial');
+  const legacySaidasCom = saidasCom.filter(m=>!m.pedido_id); // vendas antigas, gravadas antes dos pedidos
+
+  const fatPedidos = pedidosPagos.reduce((a,p)=>a+(+p.valor_total||0),0) + pedidosPendentes.reduce((a,p)=>a+(+p.valor_pago||0),0);
+  const fatLegacy  = legacySaidasCom.reduce((a,m)=> a + (m.fiado ? (+m.valor_pago||0) : (+m.preco_total||0)), 0);
+  const fat = fatPedidos + fatLegacy;
+
+  const aReceberPedidos = pedidosPendentes.reduce((a,p)=>a+Math.max(0,(+p.valor_total||0)-(+p.valor_pago||0)),0);
+  const aReceberLegacy  = legacySaidasCom.filter(m=>m.fiado&&!m.fiado_pago).reduce((a,m)=>a+Math.max(0,(+m.preco_total||0)-(+m.valor_pago||0)),0);
+  const aReceber = aReceberPedidos + aReceberLegacy;
+
+  const kgV=saidasCom.reduce((a,m)=>a+ +m.qty_kg,0), kgC=entradas.reduce((a,m)=>a+ +m.qty_kg,0);
+  const kgNC=saidasNC.reduce((a,m)=>a+ +m.qty_kg,0);
+  document.getElementById('r-fat').textContent      =R$(fat);
+  document.getElementById('r-areceber').textContent =R$(aReceber);
+  document.getElementById('r-kgv').textContent      =KG(kgV)+' kg';
+  document.getElementById('r-kgc').textContent      =KG(kgC)+' kg';
+  document.getElementById('r-kgnc').textContent     =KG(kgNC)+' kg';
+  show('r-kpis'); show('r-export');
+  const qtdF=pedidosPendentes.length + legacySaidasCom.filter(m=>m.fiado&&!m.fiado_pago).length;
+  const sfx=qtdF>0?`(exclui ${qtdF} fiado${qtdF>1?'s':''} pendente${qtdF>1?'s':''})` :'';
+  document.getElementById('r-prod-sub').textContent=sfx;
+  document.getElementById('r-vend-sub').textContent=sfx;
+  const idsPagos=new Set(pedidosPagos.map(p=>p.id));
+  const saidasPagas=saidasCom.filter(m=> m.pedido_id ? idsPagos.has(m.pedido_id) : (!m.fiado||m.fiado_pago) );
+  const porProd={};
+  saidasPagas.forEach(m=>{const n=m.produto_nome||'Produto removido';if(!porProd[n]) porProd[n]={nome:n,kg:0,r:0};porProd[n].kg+=+m.qty_kg;porProd[n].r+=(+m.preco_total||0);});
+  renderBarras('r-chart-prod',Object.values(porProd).sort((a,b)=>b.r-a.r),'r','',v=>R$(v)); show('r-bloco-prod');
+  const porVend={};
+  saidasPagas.forEach(m=>{const v=m.vendedor||'Sem vendedor';if(!porVend[v]) porVend[v]={nome:v,kg:0,r:0};porVend[v].kg+=+m.qty_kg;porVend[v].r+=(+m.preco_total||0);});
+  renderBarras('r-chart-vend',Object.values(porVend).sort((a,b)=>b.r-a.r),'r','b',v=>R$(v)); show('r-bloco-vend');
+  const porConta={};
+  saidasPagas.forEach(m=>{const c=m.conta||'Sem conta';if(!porConta[c]) porConta[c]={nome:c,kg:0,r:0};porConta[c].kg+=+m.qty_kg;porConta[c].r+=(+m.preco_total||0);});
+  renderBarras('r-chart-conta',Object.values(porConta).sort((a,b)=>b.r-a.r),'r','',v=>R$(v)); show('r-bloco-conta');
+  const porVendNC={};
+  saidasNC.forEach(m=>{const v=m.produto_nome||'Produto removido';if(!porVendNC[v]) porVendNC[v]={nome:v,kg:0};porVendNC[v].kg+=+m.qty_kg;});
+  if(saidasNC.length){renderBarras('r-chart-nc',Object.values(porVendNC).sort((a,b)=>b.kg-a.kg),'kg','b',v=>KG(v)+' kg');show('r-bloco-nc');}
+  else{document.getElementById('r-bloco-nc').style.display='none';}
+
+  // lista de pedidos (vendas) expansível + entradas/transferências soltas — PAGINADA (não afeta KPIs/gráficos, que usam o período inteiro)
+  _pedidosFiadoItens=Object.assign({},_pedidosFiadoItens,_itensRelCache); // reaproveita renderPedidoCard
+  const itensLista=[
+    ...pedidosPeriodo.map(p=>({data:p.criado_em, render:()=>renderPedidoCard(p,false)})),
+    ...data.filter(m=>!m.pedido_id).map(m=>({data:m.criado_em, render:()=>{
+      if(m.tipo==='saida' && !m.is_transferencia && m.fiado){
+        return renderFiadoLegadoCard(m); // venda fiada antiga: mostra pago/pendente igual aos pedidos novos
+      }
+      const tl=m.is_transferencia?'🔄 Transferência':m.tipo==='entrada'?'📥 Entrada':'📤 Saída';
+      const nu=m.user_email?m.user_email.split('@')[0]:(m.user_id&&_usuariosMap[m.user_id])?_usuariosMap[m.user_id]:'—';
+      return `<div class="item"><div class="item-body"><div class="item-nome">${tl} · ${m.produto_nome||m.descricao||'—'}</div><div class="item-det">${fmtDtPed(m.criado_em)} · ${nu}${m.local?' · '+m.local:''}</div></div><div class="item-val ${m.tipo==='entrada'?'g':'r'}">${m.tipo==='entrada'?'+':'−'}${KG(m.qty_kg)} kg</div></div>`;
+    }})),
+  ].sort((a,b)=>new Date(b.data)-new Date(a.data));
+  _relListaCompleta=itensLista;
+  renderPaginaLista();
+  show('r-bloco-tab');
+}
+function renderPaginaLista(){
+  const elPed=document.getElementById('r-pedidos-lista');
+  const total=_relListaCompleta.length;
+  if(!total){ elPed.innerHTML='<div class="sem-dados">Nenhuma movimentação no período.</div>'; return; }
+  const totalPags=Math.ceil(total/_REL_POR_PAG);
+  _relPagina=Math.min(Math.max(0,_relPagina),totalPags-1);
+  const from=_relPagina*_REL_POR_PAG, ate=from+_REL_POR_PAG;
+  let html=_relListaCompleta.slice(from,ate).map(x=>x.render()).join('');
+  if(totalPags>1){
+    html+=`<div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:1rem 0;font-size:13px;color:var(--mu)">`;
+    if(_relPagina>0) html+=`<button onclick="irPaginaLista(${_relPagina-1})" style="border:1px solid var(--bd);background:var(--sf);border-radius:var(--rs);padding:5px 14px;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--tx)">← Anterior</button>`;
+    html+=`<span>Página ${_relPagina+1} de ${totalPags} &nbsp;·&nbsp; ${total} registros</span>`;
+    if(_relPagina<totalPags-1) html+=`<button onclick="irPaginaLista(${_relPagina+1})" style="border:1px solid var(--bd);background:var(--sf);border-radius:var(--rs);padding:5px 14px;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--tx)">Próxima →</button>`;
+    html+='</div>';
+  }
+  elPed.innerHTML=html;
+}
+function irPaginaLista(p){ _relPagina=p; renderPaginaLista(); }
+function renderBarras(cid,itens,campo,cor,fmt){ const el=document.getElementById(cid); if(!itens.length){el.innerHTML='<div class="sem-dados">Nenhum dado no período.</div>';return;} const max=Math.max(...itens.map(i=>i[campo]))||1; el.innerHTML=itens.map(i=>`<div class="bar-wrap"><div class="bar-label" title="${i.nome}">${i.nome}</div><div class="bar-track"><div class="bar-fill ${cor}" style="width:${(i[campo]/max*100).toFixed(1)}%"></div></div><div class="bar-val">${fmt(i[campo])}</div></div>`).join(''); }
+function exportarCSV(){
+  if(!_dadosCache.length) return;
+  const cab=['Pedido','Data','Tipo','Produto','Vendedor','Cliente','Conta','Estoque','Usuário','Unidades','Kg','Valor','Status Pedido'];
+  const pedMap={}; _pedidosRelCache.forEach(p=>pedMap[p.id]=p);
+  const fmtDt=s=>new Date(s).toLocaleString('pt-BR');
+  const linhas=_dadosCache.map(m=>{
+    const nu=m.user_email?m.user_email.split('@')[0]:(m.user_id&&_usuariosMap[m.user_id])?_usuariosMap[m.user_id]:'';
+    const ped=m.pedido_id?pedMap[m.pedido_id]:null;
+    return [ped?PEDNUM(ped.numero):'',fmtDt(m.criado_em),m.is_transferencia?'Transferência':m.tipo==='entrada'?'Entrada':'Venda',m.produto_nome||m.descricao||'',m.vendedor||'',m.cliente||'',m.conta||'',m.local||'',nu,m.unidades||'',(+m.qty_kg).toFixed(3).replace('.',','),m.preco_total?(+m.preco_total).toFixed(2).replace('.',','):'',ped?ped.status:''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(';');
+  });
+  const csv=[cab.join(';'),...linhas].join('\n'), blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}), a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=`relatorio_${document.getElementById('r-de').value}_${document.getElementById('r-ate').value}.csv`; a.click(); URL.revokeObjectURL(a.href); toast('✓ CSV exportado!');
+}
+
+// ─── UTILITÁRIOS ─────────────────────────────────────────────
+function abrir(id){document.getElementById(id).classList.add('on');}
+function fechar(id){document.getElementById(id).classList.remove('on');}
+function fecharOvSeFora(e,id,resetCadastro=false){if(e.target===document.getElementById(id)){fechar(id);if(resetCadastro)_cadastrandoParaVenda=false;}}
+function cancelarModalCliente(){fechar('ov-cliente');_cadastrandoParaVenda=false;}
+document.addEventListener('keydown',e=>{if(e.key==='Escape') document.querySelectorAll('.ov.on').forEach(o=>o.classList.remove('on'));});
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');setTimeout(()=>el.classList.remove('on'),2500);}
+
+// ─── RESET VENDA (mantido) ────────────────────────────────────
 function toggleFiado(){
   const f=document.getElementById('vd-fiado').checked;
   const fw=document.getElementById('fiado-wrap');
@@ -1076,184 +1468,6 @@ function resetVenda(){
   limparClienteSelecionado();
   const cw=document.getElementById('vd-cliente-wrap');if(cw) cw.style.display='block';
 }
-async function carregarFiado(){
-  const el=document.getElementById('lista-fiado'); el.innerHTML='<div class="vazio"><div class="vazio-i">⏳</div>Carregando...</div>';
-  const{data,error}=await SB.from('movimentacoes').select('*').eq('tipo','saida').eq('fiado',true).eq('fiado_pago',false).order('criado_em',{ascending:false});
-  if(error){el.innerHTML='<div class="vazio">Erro ao carregar.</div>';return;}
-  const movs=data||[];
-  _fiadoCache=movs;
-  const totalRestante=movs.reduce((a,m)=>a+Math.max(0,(+m.preco_total||0)-(+m.valor_pago||0)),0);
-  const semPreco=movs.filter(m=>!m.preco_total||+m.preco_total===0).length;
-  const badge=document.getElementById('fiado-total-badge');
-  badge.textContent=movs.length?`${movs.length} pendente${movs.length>1?'s':''} · ${R$(totalRestante)}${semPreco?' ('+semPreco+' sem preço)':''}` :'';
-  if(!movs.length){el.innerHTML='<div class="vazio"><div class="vazio-i">✅</div>Nenhum fiado pendente!</div>';return;}
-  const fmtDt=s=>new Date(s).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
-  el.innerHTML=movs.map(m=>{
-    const total=+m.preco_total||0, pago=+m.valor_pago||0, restante=Math.max(0,total-pago);
-    const pagoInfo = pago>0.001 ? `<div class="item-det" style="color:var(--g2)">Já pago: ${R$(pago)} · Restante: ${R$(restante)}</div>` : '';
-    return `<div class="item" style="border-left:3px solid var(--r);margin-bottom:8px"><div class="item-body"><div class="item-nome" style="display:flex;align-items:center;gap:8px"><span style="background:var(--rbg);color:var(--r);font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px">FIADO</span>${m.fiado_nome||m.cliente||'Sem nome'}</div><div class="item-det">${m.produto_nome||'—'} · ${KG(m.qty_kg)} kg · ${fmtDt(m.criado_em)}</div><div class="item-det">${m.vendedor||''} ${m.local?' · '+m.local:''}</div>${pagoInfo}</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0"><div class="item-val r">${restante?R$(restante):'—'}</div><button class="btn-sm btn-sm-g" style="font-size:12px" onclick="abrirMarcarPago('${m.id}')">💰 Pagamento</button></div></div>`;
-  }).join('');
-}
-function abrirMarcarPago(id){
-  const m=_fiadoCache.find(x=>x.id===id); if(!m) return;
-  const total=+m.preco_total||0, pago=+m.valor_pago||0, restante=Math.max(0,total-pago);
-  document.getElementById('pago-id').value=id;
-  document.getElementById('pago-conta').value='';
-  document.getElementById('pago-obs').value='';
-  document.getElementById('pago-valor').value=restante>0?restante.toFixed(2):'';
-  document.getElementById('pago-info').innerHTML=`<strong>${m.fiado_nome||m.cliente||''}</strong><br>Total: ${R$(total)}${pago>0.001?' · Já pago: '+R$(pago):''}<br>Restante: <strong>${R$(restante)}</strong>`;
-  abrir('ov-pago');
-}
-async function confirmarPagamento(){
-  const id=document.getElementById('pago-id').value, conta=document.getElementById('pago-conta').value, obs=document.getElementById('pago-obs').value.trim();
-  const valorStr=document.getElementById('pago-valor').value;
-  if(!conta){alert('Informe a conta que recebeu o pagamento.');return;}
-  const m=_fiadoCache.find(x=>x.id===id);
-  if(!m){alert('Registro não encontrado. Atualize a lista e tente novamente.');return;}
-  const total=+m.preco_total||0, pagoAntes=+m.valor_pago||0, restante=Math.max(0,total-pagoAntes);
-  const valor=parseFloat((valorStr||'').replace(',','.'));
-  if(!valor||valor<=0){alert('Informe um valor de pagamento válido.');return;}
-  if(valor>restante+0.01){alert('O valor não pode ser maior que o restante ('+R$(restante)+').');return;}
-  const novoPago=pagoAntes+valor, quitado=novoPago>=total-0.005;
-  const{data:{user:_uPg}}=await SB.auth.getUser();
-  const uid=_uPg?.id||null, uemail=_uPg?.email||null;
-  const{error:errUp}=await SB.from('movimentacoes').update({
-    valor_pago:novoPago,
-    fiado_pago:quitado,
-    fiado_pago_em:quitado?agoraLocal():null,
-    conta:quitado?conta:null,
-    descricao:obs||null
-  }).eq('id',id);
-  if(errUp){alert('Erro: '+errUp.message);return;}
-  const{error:errPag}=await SB.from('pagamentos_fiado').insert({movimentacao_id:id,valor,conta,obs:obs||null,user_id:uid,user_email:uemail});
-  if(errPag){console.error(errPag);}
-  fechar('ov-pago');
-  await carregarFiado(); await carregarDados();
-  toast(quitado?'✅ Pagamento total registrado!':'💰 Pagamento parcial registrado — restante: '+R$(total-novoPago));
-}
-
-// ─── RELATÓRIO ───────────────────────────────────────────────
-let _dadosCache=[], _usuariosMap={};
-function atalho(tipo,btn){
-  document.querySelectorAll('.atalho').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
-  const p=n=>String(n).padStart(2,'0'), iso=d=>`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`, hj=new Date();
-  let de, ate=iso(hj);
-  if(tipo==='hoje') de=iso(hj);
-  else if(tipo==='semana'){const d=new Date(hj);d.setDate(d.getDate()-6);de=iso(d);}
-  else if(tipo==='mes') de=`${hj.getFullYear()}-${p(hj.getMonth()+1)}-01`;
-  else if(tipo==='mes_ant'){const m=new Date(hj.getFullYear(),hj.getMonth()-1,1),f=new Date(hj.getFullYear(),hj.getMonth(),0);de=iso(m);ate=iso(f);}
-  else if(tipo==='ano') de=`${hj.getFullYear()}-01-01`;
-  document.getElementById('r-de').value=de; document.getElementById('r-ate').value=ate; gerarRelatorio();
-}
-let _relPagina=0;
-const _REL_POR_PAG=50;
-let _relCache={de:'',ate:'',dados:[]};
-async function gerarRelatorio(pagina=0){
-  const de=document.getElementById('r-de').value, ate=document.getElementById('r-ate').value; if(!de||!ate) return;
-  _relPagina=pagina;
-  const btn=document.getElementById('btn-rel'); btn.innerHTML='<span class="spinner"></span><div><div>Carregando...</div></div>'; btn.disabled=true;
-  const cols='id,tipo,qty_kg,produto_nome,unidades,preco_total,vendedor,conta,cliente,local,user_id,user_email,fiado,fiado_pago,is_transferencia,criado_em,descricao';
-  const periodoMudou=(de!==_relCache.de||ate!==_relCache.ate);
-  if(periodoMudou){
-    const{data:todos,error:e1}=await SB.from('movimentacoes').select(cols)
-      .gte('criado_em', de + 'T00:00:00-03:00').lte('criado_em', ate + 'T23:59:59-03:00')
-      .order('criado_em',{ascending:false});
-    if(e1){btn.innerHTML='<span>📊</span><div><div>Gerar relatório</div><div class="btn-sub">Atualizar dados</div></div>'; btn.disabled=false; toast('Erro ao carregar relatório.');return;}
-    _relCache={de,ate,dados:todos||[]};
-    _dadosCache=todos||[];
-  }
-  const from=pagina*_REL_POR_PAG, to=from+_REL_POR_PAG-1;
-  const{data:pag,error:e2,count}=await SB.from('movimentacoes').select(cols,{count:'exact'})
-    .gte('criado_em', de + 'T00:00:00-03:00').lte('criado_em', ate + 'T23:59:59-03:00')
-    .order('criado_em',{ascending:false}).range(from,to);
-  btn.innerHTML='<span>📊</span><div><div>Gerar relatório</div><div class="btn-sub">Atualizar dados</div></div>'; btn.disabled=false;
-  if(e2){toast('Erro ao carregar relatório.');return;}
-  const{data:{user}}=await SB.auth.getUser();
-  if(user){const prefixo=user.email?.split('@')[0]||'eu';_usuarioAtual=prefixo;_usuariosMap[user.id]=prefixo;}
-  renderRelatorio(_relCache.dados, pag||[], count||0);
-}
-function renderRelatorio(data, pagData, pagTotal){
-  const show=id=>document.getElementById(id).style.display='block';
-  const NC_CONTAS=['Amostra','Uso próprio'];
-  const entradas=data.filter(m=>m.tipo==='entrada'&&!m.is_transferencia);
-  const saidas  =data.filter(m=>m.tipo==='saida'  &&!m.is_transferencia);
-  const saidasNC   =saidas.filter(m=>NC_CONTAS.includes(m.conta));
-  const saidasCom  =saidas.filter(m=>!NC_CONTAS.includes(m.conta));
-  const fat     =saidasCom.filter(m=>!m.fiado||m.fiado_pago).reduce((a,m)=>a+(+m.preco_total||0),0);
-  const aReceber=saidasCom.filter(m=>m.fiado&&!m.fiado_pago).reduce((a,m)=>a+(+m.preco_total||0),0);
-  const kgV=saidasCom.reduce((a,m)=>a+ +m.qty_kg,0), kgC=entradas.reduce((a,m)=>a+ +m.qty_kg,0);
-  const kgNC=saidasNC.reduce((a,m)=>a+ +m.qty_kg,0);
-  document.getElementById('r-fat').textContent      =R$(fat);
-  document.getElementById('r-areceber').textContent =R$(aReceber);
-  document.getElementById('r-kgv').textContent      =KG(kgV)+' kg';
-  document.getElementById('r-kgc').textContent      =KG(kgC)+' kg';
-  document.getElementById('r-kgnc').textContent     =KG(kgNC)+' kg';
-  show('r-kpis'); show('r-export');
-  const saidasPagas=saidasCom.filter(m=>!m.fiado||m.fiado_pago);
-  const qtdF=saidasCom.filter(m=>m.fiado&&!m.fiado_pago).length;
-  const sfx=qtdF>0?`(exclui ${qtdF} fiado${qtdF>1?'s':''} pendente${qtdF>1?'s':''})` :'';
-  document.getElementById('r-prod-sub').textContent=sfx;
-  document.getElementById('r-vend-sub').textContent=sfx;
-  const porProd={};
-  saidasPagas.forEach(m=>{const n=m.produto_nome||'Produto removido';if(!porProd[n]) porProd[n]={nome:n,kg:0,r:0};porProd[n].kg+=+m.qty_kg;porProd[n].r+=(+m.preco_total||0);});
-  renderBarras('r-chart-prod',Object.values(porProd).sort((a,b)=>b.r-a.r),'r','',v=>R$(v)); show('r-bloco-prod');
-  const porVend={};
-  saidasPagas.forEach(m=>{const v=m.vendedor||'Sem vendedor';if(!porVend[v]) porVend[v]={nome:v,kg:0,r:0};porVend[v].kg+=+m.qty_kg;porVend[v].r+=(+m.preco_total||0);});
-  renderBarras('r-chart-vend',Object.values(porVend).sort((a,b)=>b.r-a.r),'r','b',v=>R$(v)); show('r-bloco-vend');
-  const porConta={};
-  saidasPagas.forEach(m=>{const c=m.conta||'Sem conta';if(!porConta[c]) porConta[c]={nome:c,kg:0,r:0};porConta[c].kg+=+m.qty_kg;porConta[c].r+=(+m.preco_total||0);});
-  renderBarras('r-chart-conta',Object.values(porConta).sort((a,b)=>b.r-a.r),'r','',v=>R$(v)); show('r-bloco-conta');
-  const porVendNC={};
-  saidasNC.forEach(m=>{const v=m.produto_nome||'Produto removido';if(!porVendNC[v]) porVendNC[v]={nome:v,kg:0};porVendNC[v].kg+=+m.qty_kg;});
-  if(saidasNC.length){renderBarras('r-chart-nc',Object.values(porVendNC).sort((a,b)=>b.kg-a.kg),'kg','b',v=>KG(v)+' kg');show('r-bloco-nc');}
-  else{document.getElementById('r-bloco-nc').style.display='none';}
-  const tbody=document.getElementById('r-tbody');
-  const fmtDt=s=>new Date(s).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
-  const tabelaDados = pagData && pagData.length ? pagData : data.slice(0,_REL_POR_PAG);
-  const tabelaTotal = pagTotal || data.length;
-  if(!tabelaDados.length){tbody.innerHTML='<tr><td colspan="10" class="sem-dados">Nenhuma movimentação no período.</td></tr>';}
-  else{tbody.innerHTML=tabelaDados.map(m=>{
-    // ✅ CORRIGIDO: usa user_email gravado diretamente no registro
-    const nu=m.user_email?m.user_email.split('@')[0]:(m.user_id&&_usuariosMap[m.user_id])?_usuariosMap[m.user_id]:'—';
-    const tl=m.is_transferencia?'🔄 Transf.':m.tipo==='entrada'?'📥 Entrada':'📤 Venda';
-    const ft=m.fiado&&!m.fiado_pago?'<br><span style="color:var(--r);font-size:10px;font-weight:600">FIADO</span>':m.fiado&&m.fiado_pago?'<br><span style="color:var(--g2);font-size:10px;font-weight:600">✅ PAGO</span>':'';
-    return `<tr><td class="td-mu">${fmtDt(m.criado_em)}</td><td>${tl}</td><td>${m.produto_nome||m.descricao||'—'}</td><td>${m.vendedor||'—'}</td><td>${m.conta||'—'}</td><td>${m.local||'—'}</td><td>${m.cliente||'—'}</td><td class="td-mu">${nu}</td><td class="td-r">${m.tipo==='entrada'?'+':'−'}${KG(m.qty_kg)}</td><td class="td-r">${m.preco_total?R$(m.preco_total):'—'}${ft}</td></tr>`;
-  }).join('');}
-  show('r-bloco-tab');
-  const totalPags=Math.ceil(tabelaTotal/_REL_POR_PAG);
-  let pagHtml='';
-  if(totalPags>1){
-    pagHtml=`<div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:1rem 0;font-size:13px;color:var(--mu)">`;
-    if(_relPagina>0) pagHtml+=`<button onclick="gerarRelatorio(${_relPagina-1})" style="border:1px solid var(--bd);background:var(--sf);border-radius:var(--rs);padding:5px 14px;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--tx)">← Anterior</button>`;
-    pagHtml+=`<span>Página ${_relPagina+1} de ${totalPags} &nbsp;·&nbsp; ${tabelaTotal} registros</span>`;
-    if(_relPagina<totalPags-1) pagHtml+=`<button onclick="gerarRelatorio(${_relPagina+1})" style="border:1px solid var(--bd);background:var(--sf);border-radius:var(--rs);padding:5px 14px;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--tx)">Próxima →</button>`;
-    pagHtml+='</div>';
-  }
-  const blocoTab=document.getElementById('r-bloco-tab');
-  let pagEl=document.getElementById('r-paginacao');
-  if(!pagEl){pagEl=document.createElement('div');pagEl.id='r-paginacao';blocoTab.appendChild(pagEl);}
-  pagEl.innerHTML=pagHtml;
-}
-function renderBarras(cid,itens,campo,cor,fmt){ const el=document.getElementById(cid); if(!itens.length){el.innerHTML='<div class="sem-dados">Nenhum dado no período.</div>';return;} const max=Math.max(...itens.map(i=>i[campo]))||1; el.innerHTML=itens.map(i=>`<div class="bar-wrap"><div class="bar-label" title="${i.nome}">${i.nome}</div><div class="bar-track"><div class="bar-fill ${cor}" style="width:${(i[campo]/max*100).toFixed(1)}%"></div></div><div class="bar-val">${fmt(i[campo])}</div></div>`).join(''); }
-function exportarCSV(){
-  if(!_dadosCache.length) return;
-  const cab=['Data','Tipo','Produto','Vendedor','Cliente','Conta','Estoque','Usuário','Unidades','Kg','Valor','Fiado','Pago'];
-  const fmtDt=s=>new Date(s).toLocaleString('pt-BR');
-  const linhas=_dadosCache.map(m=>{
-    const nu=m.user_email?m.user_email.split('@')[0]:(m.user_id&&_usuariosMap[m.user_id])?_usuariosMap[m.user_id]:'';
-    return [fmtDt(m.criado_em),m.is_transferencia?'Transferência':m.tipo==='entrada'?'Entrada':'Venda',m.produto_nome||m.descricao||'',m.vendedor||'',m.cliente||'',m.conta||'',m.local||'',nu,m.unidades||'',(+m.qty_kg).toFixed(3).replace('.',','),m.preco_total?(+m.preco_total).toFixed(2).replace('.',','):'',m.fiado?'Sim':'Não',m.fiado?(m.fiado_pago?'Sim':'Não'):''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(';');
-  });
-  const csv=[cab.join(';'),...linhas].join('\n'), blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}), a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download=`relatorio_${document.getElementById('r-de').value}_${document.getElementById('r-ate').value}.csv`; a.click(); URL.revokeObjectURL(a.href); toast('✓ CSV exportado!');
-}
-
-// ─── UTILITÁRIOS ─────────────────────────────────────────────
-function abrir(id){document.getElementById(id).classList.add('on');}
-function fechar(id){document.getElementById(id).classList.remove('on');}
-function fecharOvSeFora(e,id,resetCadastro=false){if(e.target===document.getElementById(id)){fechar(id);if(resetCadastro)_cadastrandoParaVenda=false;}}
-function cancelarModalCliente(){fechar('ov-cliente');_cadastrandoParaVenda=false;}
-document.addEventListener('keydown',e=>{if(e.key==='Escape') document.querySelectorAll('.ov.on').forEach(o=>o.classList.remove('on'));});
-function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');setTimeout(()=>el.classList.remove('on'),2500);}
 </script>
 </body>
 </html>
