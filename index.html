@@ -1139,13 +1139,15 @@ async function carregarFiado(){
   itens.forEach(it=>{ (_pedidosFiadoItens[it.pedido_id]=_pedidosFiadoItens[it.pedido_id]||[]).push(it); });
   // combina pedidos novos + fiados antigos, ordenados por data (nada é escondido)
   const combinados=[
-    ..._pedidosFiadoCache.map(p=>({data:p.criado_em,html:renderPedidoCard(p,true)})),
-    ..._movsFiadoCache.map(m=>({data:m.criado_em,html:renderFiadoLegadoCard(m)})),
+    ..._pedidosFiadoCache.map(p=>({data:p.criado_em,html:renderPedidoCard(p,true,'pedcard')})),
+    ..._movsFiadoCache.map(m=>({data:m.criado_em,html:renderFiadoLegadoCard(m,'movcard')})),
   ].sort((a,b)=>new Date(b.data)-new Date(a.data));
   el.innerHTML=combinados.map(c=>c.html).join('');
 }
 const fmtDtPed=s=>new Date(s).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
-function renderPedidoCard(p, comAcaoPagamento){
+function renderPedidoCard(p, comAcaoPagamento, prefix){
+  prefix = prefix || 'pedcard';
+  const domId = `${prefix}-${p.id}`;
   const total=+p.valor_total||0, pago=+p.valor_pago||0, restante=Math.max(0,total-pago);
   const itens=_pedidosFiadoItens[p.id]||[];
   const badgeCls=p.status==='pago'?'pago':p.status==='parcial'?'parcial':'fiado';
@@ -1153,8 +1155,8 @@ function renderPedidoCard(p, comAcaoPagamento){
   const itensHtml=itens.map(it=>`<div class="pedido-item-row"><div><div class="pedido-item-nome">${it.produto_nome||'—'}</div><div class="pedido-item-det">${it.unidades||''} un. · ${KG(it.qty_kg)} kg</div></div><div class="pedido-item-val">${it.preco_total?R$(it.preco_total):'—'}</div></div>`).join('');
   const pagInfo = pago>0.001 ? `<div class="pedido-pagamento-info">Já pago: <strong>${R$(pago)}</strong> · Restante: <strong style="color:var(--r)">${R$(restante)}</strong></div>` : '';
   const acao = comAcaoPagamento ? `<div class="pedido-acoes-wrap"><button class="btn-sm btn-sm-g" onclick="event.stopPropagation();abrirMarcarPago('${p.id}')">💰 Registrar pagamento</button></div>` : '';
-  return `<div class="pedido-card" id="pedcard-${p.id}">
-    <div class="pedido-hd" onclick="togglePedidoEl('pedcard-${p.id}')">
+  return `<div class="pedido-card" id="${domId}">
+    <div class="pedido-hd" onclick="togglePedidoEl('${domId}')">
       <span class="pedido-num">${PEDNUM(p.numero)}</span>
       <div class="pedido-info">
         <div class="pedido-cliente">${p.cliente||p.fiado_nome||'Sem cliente'}</div>
@@ -1170,11 +1172,13 @@ function renderPedidoCard(p, comAcaoPagamento){
   </div>`;
 }
 // Card para fiados antigos (gravados antes da mudança, direto em movimentacoes, sem pedido)
-function renderFiadoLegadoCard(m){
+function renderFiadoLegadoCard(m, prefix){
+  prefix = prefix || 'movcard';
+  const domId = `${prefix}-${m.id}`;
   const total=+m.preco_total||0, pago=+m.valor_pago||0, restante=Math.max(0,total-pago);
   const pagInfo = pago>0.001 ? `<div class="pedido-pagamento-info">Já pago: <strong>${R$(pago)}</strong> · Restante: <strong style="color:var(--r)">${R$(restante)}</strong></div>` : '';
-  return `<div class="pedido-card" id="movcard-${m.id}">
-    <div class="pedido-hd" onclick="togglePedidoEl('movcard-${m.id}')">
+  return `<div class="pedido-card" id="${domId}">
+    <div class="pedido-hd" onclick="togglePedidoEl('${domId}')">
       <span class="pedido-num" title="Registro antigo, sem número de pedido">ANTIGO</span>
       <div class="pedido-info">
         <div class="pedido-cliente">${m.fiado_nome||m.cliente||'Sem nome'}</div>
@@ -1391,12 +1395,14 @@ function renderRelatorio(data, pedidosPeriodo){
   else{document.getElementById('r-bloco-nc').style.display='none';}
 
   // lista de pedidos (vendas) expansível + entradas/transferências soltas — PAGINADA (não afeta KPIs/gráficos, que usam o período inteiro)
-  _pedidosFiadoItens=Object.assign({},_pedidosFiadoItens,_itensRelCache); // reaproveita renderPedidoCard
+  // ✅ CORRIGIDO: usa um cache separado (_itensRelCache) e um prefixo de id próprio ('relpedcard'/'relmovcard')
+  // para os cards desta aba, evitando ids HTML duplicados com os da aba "Fiado" — eram esses ids repetidos
+  // que faziam os cards do Fiado pararem de expandir depois de visitar o Relatório.
   const itensLista=[
-    ...pedidosPeriodo.map(p=>({data:p.criado_em, render:()=>renderPedidoCard(p,false)})),
+    ...pedidosPeriodo.map(p=>({data:p.criado_em, render:()=>renderPedidoCardRelatorio(p)})),
     ...data.filter(m=>!m.pedido_id).map(m=>({data:m.criado_em, render:()=>{
       if(m.tipo==='saida' && !m.is_transferencia && m.fiado){
-        return renderFiadoLegadoCard(m); // venda fiada antiga: mostra pago/pendente igual aos pedidos novos
+        return renderFiadoLegadoCard(m,'relmovcard'); // venda fiada antiga: mostra pago/pendente igual aos pedidos novos
       }
       const tl=m.is_transferencia?'🔄 Transferência':m.tipo==='entrada'?'📥 Entrada':'📤 Saída';
       const nu=m.user_email?m.user_email.split('@')[0]:(m.user_id&&_usuariosMap[m.user_id])?_usuariosMap[m.user_id]:'—';
@@ -1406,6 +1412,15 @@ function renderRelatorio(data, pedidosPeriodo){
   _relListaCompleta=itensLista;
   renderPaginaLista();
   show('r-bloco-tab');
+}
+// Card de pedido específico da aba Relatório: usa _itensRelCache (itens do período) e prefixo 'relpedcard',
+// para não colidir com os cards da aba Fiado.
+function renderPedidoCardRelatorio(p){
+  const itensBak=_pedidosFiadoItens;
+  _pedidosFiadoItens=Object.assign({},_pedidosFiadoItens,_itensRelCache);
+  const html=renderPedidoCard(p,false,'relpedcard');
+  _pedidosFiadoItens=itensBak;
+  return html;
 }
 function renderPaginaLista(){
   const elPed=document.getElementById('r-pedidos-lista');
