@@ -1283,7 +1283,7 @@ async function confirmarPagamento(){
       return {id:it.id, valor_pago:valorPagoLinha, fiado_pago:linhaQuitada, fiado_pago_em:linhaQuitada?agoraLocal():null};
     });
     await Promise.all(updates.map(u=>
-      SB.from('movimentacoes').update({valor_pago:u.valor_pago, fiado_pago:u.fiado_pago, fiado_pago_em:u.fiado_pago_em}).eq('id',u.id)
+      SB.from('movimentacoes').update({valor_pago:u.valor_pago, fiado_pago:u.fiado_pago, fiado_pago_em:u.fiado_pago_em, conta:conta}).eq('id',u.id)
     ));
   }
 
