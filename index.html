@@ -249,7 +249,7 @@
       <div id="venda-linhas"></div>
       <div id="venda-total" style="display:none;background:var(--gbg);border-radius:var(--rs);padding:.75rem 1rem;margin-bottom:1rem;font-size:14px;color:var(--gtx)"></div>
       <div class="f"><label>Estoque de saída</label>
-        <select id="vd-local" onchange="recarregarTodosDisponiveis()"><option value="Sítio">Sítio</option><option value="PP">PP</option><option value="PP - Vó">PP - Vó</option></select>
+        <select id="vd-local" onchange="recarregarTodosDisponiveis()"><option value="">— selecione —</option><option value="Sítio">Sítio</option><option value="PP">PP</option><option value="PP - Vó">PP - Vó</option></select>
       </div>
       <div class="f"><label>Vendedor(a)</label>
         <select id="vd-vendedor"><option value="">— selecione —</option><option value="Adão">Adão</option><option value="Silvana">Silvana</option><option value="Vitor">Vitor</option></select>
@@ -863,6 +863,7 @@ function onVdValorPago(){
 
 async function confirmarVenda(){
   const localVenda=document.getElementById('vd-local').value, vendedor=document.getElementById('vd-vendedor').value.trim(), conta=document.getElementById('vd-conta').value.trim(), clienteNome=document.getElementById('vd-cliente').value.trim(), obs=document.getElementById('vd-obs').value.trim(), isFiado=document.getElementById('vd-fiado').checked;
+  if(!localVenda){alert('Selecione o estoque de saída.');return;}
   const linhasValidas=linhasVenda.filter(l=>l.prodId&&l.qtd>0);
   if(!linhasValidas.length){alert('Adicione ao menos um produto com quantidade.');return;}
   if(!vendedor){alert('Informe o vendedor(a).');return;}
@@ -1477,7 +1478,7 @@ function resetVenda(){
   document.getElementById('vd-fiado').checked=false;
   document.getElementById('vd-vendedor').value='';
   document.getElementById('vd-conta').value='';
-  document.getElementById('vd-local').value='Sítio';
+  document.getElementById('vd-local').value='';
   document.getElementById('fiado-wrap').style.borderColor='var(--bd)';
   document.getElementById('fiado-wrap').style.background='var(--bg)';
   document.getElementById('vd-valor-pago').value='';
